@@ -131,6 +131,59 @@ describe('createOrder', () => {
     expect(payload.total_amount).toBe(2500);
   });
 
+  it('rejects an unknown coupon code without touching the transaction', async () => {
+    const connection = makeConnection();
+    connection.query
+      .mockResolvedValueOnce([[
+        { id: 1, size: 'M', quantity: 2, product_id: 9, name: 'Linen Shirt', images: '[]', price: 500, stock: 10 },
+      ]]) // cart lookup
+      .mockResolvedValueOnce([[]]); // coupon lookup -> not found
+    pool.getConnection.mockResolvedValueOnce(connection);
+    const req = { user: { id: 1, name: 'Jane', email: 'jane@example.com' }, body: { ...fullShippingBody(), coupon_code: 'NOPE' } };
+    const res = mockRes();
+
+    await createOrder(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Invalid coupon code' });
+    expect(connection.beginTransaction).not.toHaveBeenCalled();
+    expect(connection.release).toHaveBeenCalled();
+  });
+
+  it('applies a valid coupon, reduces the total, and increments its usage count', async () => {
+    const connection = makeConnection();
+    connection.query
+      .mockResolvedValueOnce([[
+        { id: 1, size: 'M', quantity: 2, product_id: 9, name: 'Linen Shirt', images: '[]', price: 500, stock: 10 },
+      ]]) // cart lookup -> itemsTotal 1000
+      .mockResolvedValueOnce([[{
+        id: 7, code: 'SAVE10', discount_type: 'percent', discount_value: 10,
+        min_order_amount: 0, max_discount_amount: null, usage_limit: null,
+        used_count: 0, expires_at: null, is_active: 1,
+      }]]) // coupon lookup
+      .mockResolvedValueOnce([{ insertId: 60 }]) // INSERT order
+      .mockResolvedValueOnce([{}]) // INSERT order_items
+      .mockResolvedValueOnce([{}]) // UPDATE stock
+      .mockResolvedValueOnce([{}]) // DELETE cart_items
+      .mockResolvedValueOnce([{}]); // UPDATE coupons used_count
+    pool.getConnection.mockResolvedValueOnce(connection);
+    const req = { user: { id: 1, name: 'Jane', email: 'jane@example.com' }, body: { ...fullShippingBody(), coupon_code: 'save10' } };
+    const res = mockRes();
+
+    await createOrder(req, res);
+
+    expect(connection.commit).toHaveBeenCalled();
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.items_total).toBe(1000);
+    expect(payload.discount_amount).toBe(100);
+    expect(payload.coupon_code).toBe('SAVE10');
+    expect(payload.total_amount).toBe(999); // 1000 - 100 discount + 99 shipping
+
+    const usageUpdateCall = connection.query.mock.calls[6];
+    expect(usageUpdateCall[0]).toContain('used_count = used_count + 1');
+    expect(usageUpdateCall[1]).toEqual([7]);
+  });
+
   it('rolls back the transaction if something fails after it has begun', async () => {
     const connection = makeConnection();
     connection.query

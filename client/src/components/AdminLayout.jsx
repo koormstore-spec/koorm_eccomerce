@@ -1,54 +1,36 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import Drawer from './Drawer';
+import { MenuIcon, CloseIcon, ChevronRightIcon } from './Icons';
+import { AdminIcon } from './admin/AdminUI';
 
 const LINKS = [
-  { to: '/admin', label: 'Dashboard', end: true },
-  { to: '/admin/products', label: 'Products' },
-  { to: '/admin/orders', label: 'Orders' },
+  { to: '/admin', label: 'Overview', icon: 'dashboard', end: true },
+  { to: '/admin/products', label: 'Products', icon: 'products' },
+  { to: '/admin/orders', label: 'Orders', icon: 'orders' },
+  { to: '/admin/coupons', label: 'Coupons', icon: 'coupon' },
 ];
 
-export default function AdminLayout({ children }) {
+export default function AdminLayout({ children, title = 'Store overview', description, actions }) {
   const { admin, adminLogout } = useAdminAuth();
   const navigate = useNavigate();
-
-  return (
-    <div className="container-x py-10">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="section-title">Admin Panel</h1>
-        {admin && (
-          <div className="flex items-center gap-4 text-sm">
-            <span className="text-ink/60">Signed in as {admin.name}</span>
-            <button
-              onClick={() => {
-                adminLogout();
-                navigate('/admin/login');
-              }}
-              className="btn-outline text-xs py-2 px-4"
-            >
-              Logout
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="flex gap-8">
-        <aside className="w-48 shrink-0 space-y-1">
-          {LINKS.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) =>
-                `block px-4 py-2 text-sm border ${
-                  isActive ? 'bg-ink text-cream border-ink' : 'border-sand hover:border-ink'
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </aside>
-        <div className="flex-1 min-w-0">{children}</div>
-      </div>
+  const { pathname } = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const section = pathname.includes('/products') ? 'Products' : pathname.includes('/orders') ? 'Orders' : pathname.includes('/coupons') ? 'Coupons' : 'Overview';
+  const logout = () => { adminLogout(); navigate('/admin/login'); };
+  const navigation = <div className="admin-sidebar">
+    <Link to="/admin" className="admin-brand"><span className="font-serif text-3xl font-semibold tracking-[-0.06em]">KOORM</span><span className="mt-1 rounded border border-cream/25 px-1.5 py-0.5 text-[9px] tracking-widest">ADMIN</span></Link>
+    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-7"><p className="mb-4 px-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-cream/45">Workspace</p><nav aria-label="Admin navigation" className="space-y-2">{LINKS.map(link => <NavLink key={link.to} to={link.to} end={link.end} onClick={() => setMenuOpen(false)} className="admin-nav-link"><AdminIcon type={link.icon} /><span>{link.label}</span></NavLink>)}</nav><div className="mt-8 border-t border-white/10 pt-6"><Link to="/" className="admin-nav-link"><AdminIcon type="external" />View storefront</Link></div></div>
+    <div className="mx-5 mb-5 rounded-xl border border-white/10 bg-white/5 p-4"><p className="font-serif text-lg">Your store. Your story.</p><p className="mt-2 text-xs leading-6 text-cream/55">A little care behind every piece.</p></div>
+    <div className="flex items-center gap-3 border-t border-white/10 p-5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e6eddc] text-sm font-semibold text-ink">{admin?.name?.slice(0, 1).toUpperCase() || 'K'}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{admin?.name || 'Store admin'}</p><p className="mt-1 text-[10px] text-cream/50">Administrator</p></div><button type="button" onClick={logout} aria-label="Sign out" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"><AdminIcon type="logout" width={17} height={17} /></button></div>
+  </div>;
+  return <div className="admin-shell">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] lg:block">{navigation}</aside>
+    <div className="admin-workspace">
+      <header className="admin-header"><div className="flex min-w-0 items-center gap-3"><button type="button" onClick={() => setMenuOpen(true)} aria-label="Open admin menu" aria-expanded={menuOpen} aria-controls="admin-navigation" className="admin-icon-button lg:hidden"><MenuIcon /></button><p className="hidden text-xs text-muted sm:block">Workspace</p><ChevronRightIcon width={13} height={13} className="hidden text-muted sm:block" /><span className="text-sm font-semibold">{section}</span></div><div className="flex items-center gap-3"><Link to="/" className="admin-secondary hidden sm:flex">View store <AdminIcon type="external" width={14} height={14} /></Link><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e9eedf] text-xs font-semibold" title={admin?.name}>{admin?.name?.slice(0, 1).toUpperCase() || 'K'}</span></div></header>
+      <div className="admin-content"><div className="admin-heading"><div className="min-w-0"><p className="eyebrow mb-2">Koorm administration</p><h1 className="admin-title">{title}</h1>{description && <p className="mt-2 max-w-xl text-sm leading-6 text-muted">{description}</p>}</div>{actions && <div className="flex flex-wrap gap-2">{actions}</div>}</div>{children}<p className="mt-10 text-center text-[10px] text-muted/80">KOORM · Store management</p></div>
     </div>
-  );
+    <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} id="admin-navigation" label="Administration"><div className="relative flex min-h-0 flex-1 flex-col"><button type="button" className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-ink text-cream" onClick={() => setMenuOpen(false)} aria-label="Close admin menu"><CloseIcon width={17} height={17} /></button>{navigation}</div></Drawer>
+  </div>;
 }

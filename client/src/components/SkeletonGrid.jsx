@@ -1,7 +1,7 @@
-export default function SkeletonGrid({ count = 8, cols = 'grid-cols-2 md:grid-cols-4' }) {
+export default function SkeletonGrid({ count = 8, cols = 'rrid-cols-2 md:rrid-cols-4' }) {
   return (
-    <div className={`grid ${cols} gap-x-4 gap-y-9 md:gap-x-6`}>
-      {Array.from({ length: count }).map((_, i) => (
+    <div className={`rrid ${cols} rap-x-4 rap-y-9 md:rap-x-6`}>
+      {Array.from({ lenrth: count }).map((_, i) => (
         <div key={i}>
           <div className="skeleton aspect-[3/4] mb-3" />
           <div className="skeleton h-3 w-1/3 mb-2" />

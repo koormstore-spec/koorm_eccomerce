@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { sendOrderConfirmationToCustomer, sendOrderNotificationToAdmin, sendOrderCancellationToAdmin, sendOrderStatusUpdateToCustomer } = require('../utils/email');
+const { evaluateCoupon } = require('./couponController');
 
 const parseImages = (images) => {
   if (!images) return [];
@@ -23,7 +24,7 @@ const createOrder = async (req, res) => {
   const connection = await pool.getConnection();
   try {
     const { shipping_name, shipping_phone, shipping_address_line1, shipping_address_line2,
-      shipping_city, shipping_state, shipping_pincode } = req.body;
+      shipping_city, shipping_state, shipping_pincode, coupon_code } = req.body;
 
     if (!shipping_name || !shipping_phone || !shipping_address_line1 || !shipping_city || !shipping_state || !shipping_pincode) {
       connection.release();
@@ -52,18 +53,40 @@ const createOrder = async (req, res) => {
 
     const itemsTotal = cartRows.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
     const shippingFee = itemsTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
-    const totalAmount = itemsTotal + shippingFee;
+
+    // Re-validated here (not trusted from the client) so a coupon that
+    // expired, hit its usage limit, or never existed can't be applied.
+    let discountAmount = 0;
+    let appliedCoupon = null;
+    if (coupon_code) {
+      const [coupons] = await connection.query('SELECT * FROM coupons WHERE code = ?', [
+        coupon_code.trim().toUpperCase(),
+      ]);
+      if (coupons.length === 0) {
+        connection.release();
+        return res.status(400).json({ message: 'Invalid coupon code' });
+      }
+      const result = evaluateCoupon(coupons[0], itemsTotal);
+      if (result.error) {
+        connection.release();
+        return res.status(400).json({ message: result.error });
+      }
+      discountAmount = result.discountAmount;
+      appliedCoupon = coupons[0];
+    }
+
+    const totalAmount = itemsTotal + shippingFee - discountAmount;
     const orderNumber = generateOrderNumber();
 
     await connection.beginTransaction();
 
     const [orderResult] = await connection.query(
       `INSERT INTO orders
-       (user_id, order_number, items_total, shipping_fee, total_amount, payment_method, status,
+       (user_id, order_number, items_total, shipping_fee, coupon_code, discount_amount, total_amount, payment_method, status,
         shipping_name, shipping_phone, shipping_address_line1, shipping_address_line2,
         shipping_city, shipping_state, shipping_pincode)
-       VALUES (?, ?, ?, ?, ?, 'COD', 'placed', ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, orderNumber, itemsTotal, shippingFee, totalAmount,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'COD', 'placed', ?, ?, ?, ?, ?, ?, ?)`,
+      [req.user.id, orderNumber, itemsTotal, shippingFee, appliedCoupon ? appliedCoupon.code : null, discountAmount, totalAmount,
         shipping_name, shipping_phone, shipping_address_line1, shipping_address_line2 || null,
         shipping_city, shipping_state, shipping_pincode]
     );
@@ -84,6 +107,10 @@ const createOrder = async (req, res) => {
 
     await connection.query('DELETE FROM cart_items WHERE user_id = ?', [req.user.id]);
 
+    if (appliedCoupon) {
+      await connection.query('UPDATE coupons SET used_count = used_count + 1 WHERE id = ?', [appliedCoupon.id]);
+    }
+
     await connection.commit();
     connection.release();
 
@@ -99,6 +126,8 @@ const createOrder = async (req, res) => {
       })),
       items_total: itemsTotal,
       shipping_fee: shippingFee,
+      coupon_code: appliedCoupon ? appliedCoupon.code : null,
+      discount_amount: discountAmount,
       total_amount: totalAmount,
       shipping_name,
       shipping_phone,
@@ -120,6 +149,8 @@ const createOrder = async (req, res) => {
       order_number: orderNumber,
       items_total: itemsTotal,
       shipping_fee: shippingFee,
+      coupon_code: appliedCoupon ? appliedCoupon.code : null,
+      discount_amount: discountAmount,
       total_amount: totalAmount,
       status: 'placed',
       payment_method: 'COD',

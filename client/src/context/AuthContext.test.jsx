@@ -8,12 +8,14 @@ vi.mock('../api/axios', () => ({
 }));
 
 function AuthProbe() {
-  const { user, login, register, logout } = useAuth();
+  const { user, register, verifyEmail, requestLoginCode, verifyLoginCode, logout } = useAuth();
   return (
     <div>
       <span data-testid="user">{user ? user.email : 'anonymous'}</span>
-      <button onClick={() => login('jane@example.com', 'secret123')}>login</button>
-      <button onClick={() => register('Jane', 'jane@example.com', 'secret123', '999')}>register</button>
+      <button onClick={() => register('Jane', 'jane@example.com', '999')}>register</button>
+      <button onClick={() => verifyEmail('jane@example.com', '123456')}>verify-email</button>
+      <button onClick={() => requestLoginCode('jane@example.com')}>request-login-code</button>
+      <button onClick={() => verifyLoginCode('jane@example.com', '123456')}>verify-login-code</button>
       <button onClick={logout}>logout</button>
     </div>
   );
@@ -43,30 +45,58 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user')).toHaveTextContent('saved@example.com');
   });
 
-  it('login stores the returned user in state and localStorage', async () => {
-    api.post.mockResolvedValueOnce({ data: { id: 1, email: 'jane@example.com', token: 'tok-123' } });
-    renderWithProvider();
-
-    fireEvent.click(screen.getByText('login'));
-
-    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('jane@example.com'));
-    expect(api.post).toHaveBeenCalledWith('/auth/login', { email: 'jane@example.com', password: 'secret123' });
-    expect(JSON.parse(localStorage.getItem('koorm_user')).token).toBe('tok-123');
-  });
-
-  it('register stores the returned user in state and localStorage', async () => {
-    api.post.mockResolvedValueOnce({ data: { id: 2, email: 'jane@example.com', token: 'tok-456' } });
+  it('register does not create a session by itself (just sends a code)', async () => {
+    api.post.mockResolvedValueOnce({ data: { message: 'sent', email: 'jane@example.com' } });
     renderWithProvider();
 
     fireEvent.click(screen.getByText('register'));
 
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/auth/register', {
+        name: 'Jane',
+        email: 'jane@example.com',
+        phone: '999',
+      })
+    );
+    expect(screen.getByTestId('user')).toHaveTextContent('anonymous');
+    expect(localStorage.getItem('koorm_user')).toBeNull();
+  });
+
+  it('verifyEmail stores the returned user in state and localStorage', async () => {
+    api.post.mockResolvedValueOnce({ data: { id: 2, email: 'jane@example.com', token: 'tok-456' } });
+    renderWithProvider();
+
+    fireEvent.click(screen.getByText('verify-email'));
+
     await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('jane@example.com'));
-    expect(api.post).toHaveBeenCalledWith('/auth/register', {
-      name: 'Jane',
+    expect(api.post).toHaveBeenCalledWith('/auth/verify-email', { email: 'jane@example.com', code: '123456' });
+    expect(JSON.parse(localStorage.getItem('koorm_user')).token).toBe('tok-456');
+  });
+
+  it('requestLoginCode does not create a session by itself', async () => {
+    api.post.mockResolvedValueOnce({ data: { message: 'sent' } });
+    renderWithProvider();
+
+    fireEvent.click(screen.getByText('request-login-code'));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/auth/request-login-code', { email: 'jane@example.com' })
+    );
+    expect(screen.getByTestId('user')).toHaveTextContent('anonymous');
+  });
+
+  it('verifyLoginCode stores the returned user in state and localStorage', async () => {
+    api.post.mockResolvedValueOnce({ data: { id: 1, email: 'jane@example.com', token: 'tok-123' } });
+    renderWithProvider();
+
+    fireEvent.click(screen.getByText('verify-login-code'));
+
+    await waitFor(() => expect(screen.getByTestId('user')).toHaveTextContent('jane@example.com'));
+    expect(api.post).toHaveBeenCalledWith('/auth/verify-login-code', {
       email: 'jane@example.com',
-      password: 'secret123',
-      phone: '999',
+      code: '123456',
     });
+    expect(JSON.parse(localStorage.getItem('koorm_user')).token).toBe('tok-123');
   });
 
   it('logout clears both state and localStorage', async () => {

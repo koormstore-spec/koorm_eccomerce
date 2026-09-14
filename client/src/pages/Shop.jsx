@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
 import SkeletonGrid from '../components/SkeletonGrid';
+import Drawer from '../components/Drawer';
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from '../components/Icons';
 
 const CATEGORIES = ['men'];
@@ -87,8 +88,8 @@ export default function Shop() {
 
   return (
     <div className="fade-in">
-      <section className="border-b border-sand bg-[#eee9e1]">
-        <div className="container-x py-7 md:py-10">
+      <section className="border-b border-sand bg-[#eeefe8]">
+        <div className="container-x py-8 md:py-12">
           <div className="mb-5 flex items-center gap-1.5 text-[12px] text-muted"><Link to="/" className="hover:text-ink">Home</Link><ChevronRightIcon width={12} height={12} /><span className="text-muted">Shop</span></div>
           <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div><p className="page-kicker">Koorm essentials</p><h1 className="section-title capitalize">{title}</h1><p className="mt-3 max-w-md text-sm leading-6 text-muted">Considered staples made to make getting dressed feel easier.</p></div>
@@ -112,30 +113,27 @@ export default function Shop() {
             <div className="sticky top-32 border-t border-ink pt-4"><div className="mb-6 flex items-center justify-between"><h2 className="text-[12px] font-bold uppercase tracking-[0.18em]">Filters</h2>{hasActiveFilters && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay text-[12px] text-white">!</span>}</div><FilterContent /></div>
           </aside>
           <div className="min-w-0 flex-1">
-            <div className="mb-6 flex items-center justify-between border-y border-sand py-3">
-              <button className="btn-outline px-4 py-2 text-[12px] xl:hidden" onClick={() => setFiltersOpen(true)}>Filters {hasActiveFilters && <span className="ml-1 text-accent">&bull;</span>}</button>
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-sand py-3">
+              <button className="btn-outline px-4 py-2 text-[12px] xl:hidden" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen} aria-controls="shop-filters">Filters {hasActiveFilters && <span className="ml-1 text-accent">&bull;</span>}</button>
               <p className="hidden text-xs text-muted xl:block">Showing a thoughtful selection of {total} pieces</p>
-              <div className="relative ml-auto"><select value={sort} onChange={(event) => updateParams({ sort: event.target.value })} className="h-10 appearance-none rounded-full border border-sand bg-white py-2 pl-4 pr-9 text-xs outline-none transition-colors hover:border-ink"><option value="">Sort: Recommended</option>{SORT_OPTIONS.filter((option) => option.value).map((option) => <option key={option.value} value={option.value}>Sort: {option.label}</option>)}</select><ChevronDownIcon width={14} height={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" /></div>
+              <div className="relative ml-auto max-w-full"><select value={sort} onChange={(event) => updateParams({ sort: event.target.value })} className="h-11 max-w-full appearance-none rounded-sm border border-sand bg-white py-2 pl-4 pr-9 text-xs outline-none transition-colors hover:border-ink"><option value="">Sort: Recommended</option>{SORT_OPTIONS.filter((option) => option.value).map((option) => <option key={option.value} value={option.value}>Sort: {option.label}</option>)}</select><ChevronDownIcon width={14} height={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" /></div>
             </div>
 
-            {loading ? <SkeletonGrid count={8} cols="grid-cols-2 md:grid-cols-3 xl:grid-cols-4" /> : products.length === 0 ? (
+            {loading ? <SkeletonGrid count={8} cols="grid-cols-2 md:grid-cols-3" /> : products.length === 0 ? (
               <div className="panel py-20 text-center"><p className="font-serif text-2xl">Nothing quite like that.</p><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted">Try another collection or remove a filter to see more of the edit.</p><button onClick={clearAll} className="btn-outline mt-6 px-5 py-2.5 text-[12px]">View all pieces</button></div>
             ) : (
-              <><div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 md:gap-x-5 xl:grid-cols-4 xl:gap-x-6">{products.map((product) => <ProductCard key={product.id} product={product} />)}</div>
-              {pages > 1 && <div className="mt-14 flex items-center justify-center gap-2">{Array.from({ length: pages }, (_, index) => index + 1).map((number) => <button key={number} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', number); setSearchParams(next); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold transition-colors ${number === page ? 'border-ink bg-ink text-cream' : 'border-sand hover:border-ink'}`}>{number}</button>)}</div>}</>
+              <><div className="grid grid-cols-2 gap-x-3 gap-y-8 sm:gap-x-5 md:grid-cols-3 lg:gap-x-6">{products.map((product) => <ProductCard key={product.id} product={product} />)}</div>
+              {pages > 1 && <div className="mt-14 flex flex-wrap items-center justify-center gap-2">{Array.from({ length: pages }, (_, index) => index + 1).map((number) => <button key={number} onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', number); setSearchParams(next); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex h-10 w-10 items-center justify-center rounded-full border text-xs font-semibold transition-colors ${number === page ? 'border-ink bg-ink text-cream' : 'border-sand hover:border-ink'}`}>{number}</button>)}</div>}</>
             )}
           </div>
         </div>
       </div>
 
-      <div className={`fixed inset-0 z-[60] transition-opacity duration-300 xl:hidden ${filtersOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
-        <div className="absolute inset-0 bg-black/40" onClick={() => setFiltersOpen(false)} />
-        <div className={`absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col bg-[#fbfaf8] shadow-2xl transition-transform duration-300 ease-out ${filtersOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="flex h-20 items-center justify-between border-b border-sand px-6"><div><p className="text-[12px] font-bold uppercase tracking-[0.16em] text-accent">Refine the edit</p><h2 className="mt-1 font-serif text-xl">Filters</h2></div><button onClick={() => setFiltersOpen(false)} className="btn-icon h-9 w-9" aria-label="Close filters"><CloseIcon width={17} height={17} /></button></div>
-          <div className="flex-1 overflow-y-auto p-6"><FilterContent /></div>
-          <div className="border-t border-sand p-5"><button onClick={() => setFiltersOpen(false)} className="btn-primary w-full">Show {total} result{total === 1 ? '' : 's'}</button></div>
-        </div>
-      </div>
+      <Drawer open={filtersOpen} onClose={() => setFiltersOpen(false)} id="shop-filters" label="Filters" side="right" breakpoint={1280}>
+          <div className="flex h-20 shrink-0 items-center justify-between border-b border-sand px-6"><div><p className="text-[12px] font-bold uppercase tracking-[0.16em] text-accent">Refine the edit</p><h2 className="mt-1 font-serif text-xl">Filters</h2></div><button onClick={() => setFiltersOpen(false)} className="btn-icon" aria-label="Close filters"><CloseIcon width={17} height={17} /></button></div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"><FilterContent /></div>
+          <div className="shrink-0 border-t border-sand p-5"><button onClick={() => setFiltersOpen(false)} className="btn-primary w-full">Show {total} result{total === 1 ? '' : 's'}</button></div>
+      </Drawer>
     </div>
   );
 }

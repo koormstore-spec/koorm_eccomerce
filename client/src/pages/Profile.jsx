@@ -23,8 +23,8 @@ export default function Profile() {
 
   return (
     <div className="container-x py-10 fade-in">
-      <div className="flex items-center justify-between mb-8">
-        <div>
+      <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <div className="min-w-0">
           <h1 className="section-title">My Account</h1>
           <p className="text-muted text-sm mt-2">{user.name} · {user.email}</p>
         </div>
@@ -45,7 +45,7 @@ export default function Profile() {
             <Link
               key={order.id}
               to={`/orders/${order.id}`}
-              className="flex items-center justify-between border border-sand p-5 hover:border-ink transition"
+              className="flex flex-col items-start justify-between gap-4 border border-sand p-5 hover:border-ink transition sm:flex-row sm:items-center"
             >
               <div>
                 <p className="font-medium">{order.order_number}</p>
@@ -54,7 +54,7 @@ export default function Profile() {
                   {' · '}{order.items.length} item{order.items.length > 1 ? 's' : ''}
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <span className={`text-xs px-3 py-1 rounded-full capitalize ${STATUS_COLORS[order.status]}`}>
                   {order.status}
                 </span>

@@ -1,52 +1,58 @@
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { generateToken } = require('../utils/generateToken');
-const { sendWelcomeEmail, sendVerificationCodeEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendWelcomeEmail, sendVerificationCodeEmail } = require('../utils/email');
 
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const generateVerificationCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 
+const issueVerificationCode = async (userId) => {
+  const code = generateVerificationCode();
+  const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
+  await pool.query(
+    'UPDATE users SET verification_code = ?, verification_code_expiry = ? WHERE id = ?',
+    [hashToken(code), codeExpiry, userId]
+  );
+  return code;
+};
+
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email and password are required' });
+    const { name, email, phone } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required' });
     }
-    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+
+    const [existing] = await pool.query('SELECT id, is_verified FROM users WHERE email = ?', [email]);
+
+    let userId;
     if (existing.length > 0) {
-      return res.status(400).json({ message: 'An account with this email already exists' });
+      if (existing[0].is_verified) {
+        return res.status(400).json({ message: 'An account with this email already exists' });
+      }
+      // Unverified account from a previous, abandoned signup attempt — reuse
+      // it and send a fresh code instead of blocking the user forever.
+      userId = existing[0].id;
+      await pool.query('UPDATE users SET name = ?, phone = ? WHERE id = ?', [name, phone || null, userId]);
+    } else {
+      const [result] = await pool.query(
+        'INSERT INTO users (name, email, phone) VALUES (?, ?, ?)',
+        [name, email, phone || null]
+      );
+      userId = result.insertId;
     }
-    const hashed = await bcrypt.hash(password, 10);
-    const [result] = await pool.query(
-      'INSERT INTO users (name, email, password, phone) VALUES (?, ?, ?, ?)',
-      [name, email, hashed, phone || null]
-    );
 
-    const code = generateVerificationCode();
-    const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
-    await pool.query(
-      'UPDATE users SET verification_code = ?, verification_code_expiry = ? WHERE id = ?',
-      [hashToken(code), codeExpiry, result.insertId]
-    );
+    const code = await issueVerificationCode(userId);
 
-    const token = generateToken(result.insertId);
     res.status(201).json({
-      id: result.insertId,
-      name,
+      message: "We've emailed you a verification code. Enter it to finish creating your account.",
       email,
-      phone: phone || null,
-      is_verified: false,
-      token,
     });
 
-    // Fire-and-forget, isolated from the response above.
-    Promise.all([
-      sendWelcomeEmail({ name, email }),
-      sendVerificationCodeEmail({ name, email, code }),
-    ]).catch((err) => console.error('Registration email dispatch failed:', err.message));
+    sendVerificationCodeEmail({ name, email, code }).catch((err) =>
+      console.error('Registration email dispatch failed:', err.message)
+    );
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -60,7 +66,7 @@ const verifyEmail = async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT id, is_verified FROM users
+      `SELECT id, name, phone, is_verified FROM users
        WHERE email = ? AND verification_code = ? AND verification_code_expiry > NOW()`,
       [email, hashToken(code)]
     );
@@ -71,12 +77,26 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'This account is already verified' });
     }
 
+    const user = rows[0];
     await pool.query(
       'UPDATE users SET is_verified = 1, verification_code = NULL, verification_code_expiry = NULL WHERE id = ?',
-      [rows[0].id]
+      [user.id]
     );
 
-    res.json({ message: 'Email verified successfully.', verified: true });
+    // Verification is the moment the account truly comes into existence, so
+    // this doubles as first login: hand back a token right away.
+    const token = generateToken(user.id);
+    res.json({
+      id: user.id,
+      name: user.name,
+      email,
+      phone: user.phone,
+      token,
+    });
+
+    sendWelcomeEmail({ name: user.name, email }).catch((err) =>
+      console.error('Welcome email dispatch failed:', err.message)
+    );
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -97,13 +117,7 @@ const resendVerificationCode = async (req, res) => {
       return res.status(400).json({ message: 'This account is already verified' });
     }
 
-    const code = generateVerificationCode();
-    const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
-    await pool.query(
-      'UPDATE users SET verification_code = ?, verification_code_expiry = ? WHERE id = ?',
-      [hashToken(code), codeExpiry, rows[0].id]
-    );
-
+    const code = await issueVerificationCode(rows[0].id);
     sendVerificationCodeEmail({ name: rows[0].name, email, code }).catch((err) =>
       console.error('Verification code email dispatch failed:', err.message)
     );
@@ -114,29 +128,58 @@ const resendVerificationCode = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+// Passwordless login, step 1: email a one-time code to a verified account.
+const requestLoginCode = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
     }
-    const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+
+    const [rows] = await pool.query('SELECT id, name, is_verified FROM users WHERE email = ?', [email]);
     if (rows.length === 0) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(404).json({ message: 'No account found with that email' });
     }
+    if (!rows[0].is_verified) {
+      return res.status(400).json({ message: 'Please finish verifying your email first', unverified: true });
+    }
+
+    const code = await issueVerificationCode(rows[0].id);
+    sendVerificationCodeEmail({ name: rows[0].name, email, code }).catch((err) =>
+      console.error('Login code email dispatch failed:', err.message)
+    );
+
+    res.json({ message: 'A login code has been sent to your email.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Passwordless login, step 2: exchange the code for a session token.
+const verifyLoginCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ message: 'Email and code are required' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, name, phone FROM users
+       WHERE email = ? AND verification_code = ? AND verification_code_expiry > NOW()`,
+      [email, hashToken(code)]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ message: 'Invalid or expired code' });
+    }
+
     const user = rows[0];
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+    await pool.query(
+      'UPDATE users SET verification_code = NULL, verification_code_expiry = NULL WHERE id = ?',
+      [user.id]
+    );
+
     const token = generateToken(user.id);
-    res.json({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      token,
-    });
+    res.json({ id: user.id, name: user.name, email, phone: user.phone, token });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -206,74 +249,10 @@ const deleteAddress = async (req, res) => {
   }
 };
 
-const GENERIC_FORGOT_PASSWORD_MESSAGE =
-  'If an account exists with that email, a password reset link has been sent.';
-
-const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
-    }
-
-    const [rows] = await pool.query('SELECT id, name, email FROM users WHERE email = ?', [email]);
-
-    // Always respond the same way, regardless of whether the account exists,
-    // so this endpoint can't be used to discover which emails are registered.
-    if (rows.length > 0) {
-      const user = rows[0];
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const expiry = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-
-      await pool.query('UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?', [
-        hashToken(rawToken),
-        expiry,
-        user.id,
-      ]);
-
-      const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${rawToken}`;
-      sendPasswordResetEmail({ name: user.name, email: user.email, resetUrl }).catch((err) =>
-        console.error('Password reset email dispatch failed:', err.message)
-      );
-    }
-
-    res.json({ message: GENERIC_FORGOT_PASSWORD_MESSAGE });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-const resetPassword = async (req, res) => {
-  try {
-    const { token } = req.params;
-    const { password } = req.body;
-    if (!password || password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters' });
-    }
-
-    const [rows] = await pool.query(
-      'SELECT id FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()',
-      [hashToken(token)]
-    );
-    if (rows.length === 0) {
-      return res.status(400).json({ message: 'This reset link is invalid or has expired' });
-    }
-
-    const hashed = await bcrypt.hash(password, 10);
-    await pool.query(
-      'UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
-      [hashed, rows[0].id]
-    );
-
-    res.json({ message: 'Password has been reset successfully. You can now log in.' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
 module.exports = {
   register,
-  login,
+  requestLoginCode,
+  verifyLoginCode,
   getProfile,
   updateProfile,
   listAddresses,
@@ -281,6 +260,4 @@ module.exports = {
   deleteAddress,
   verifyEmail,
   resendVerificationCode,
-  forgotPassword,
-  resetPassword,
 };

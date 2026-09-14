@@ -102,6 +102,7 @@ const orderSummaryTableHtml = (order) => `
   </table>
   <div style="margin-top:20px;text-align:right;">
     <p style="margin:4px 0;">Subtotal: <strong>${formatCurrency(order.items_total)}</strong></p>
+    ${Number(order.discount_amount) > 0 ? `<p style="margin:4px 0;color:#166534;">Coupon ${order.coupon_code ? `(${order.coupon_code})` : ''}: <strong>-${formatCurrency(order.discount_amount)}</strong></p>` : ''}
     <p style="margin:4px 0;">Shipping: <strong>${Number(order.shipping_fee) === 0 ? 'FREE' : formatCurrency(order.shipping_fee)}</strong></p>
     <h2 style="margin:10px 0 0;color:#1a1a1a;">Total Payable: ${formatCurrency(order.total_amount)}</h2>
     <p style="margin:4px 0;color:#166534;font-weight:bold;">Payment Method: Cash on Delivery (COD)</p>
@@ -279,30 +280,6 @@ const sendVerificationCodeEmail = async (user) => {
   });
 };
 
-const sendPasswordResetEmail = async (user) => {
-  const body = `
-    <h2 style="color:#333;margin-top:0;">Reset your password</h2>
-    <p style="color:#555;">Hi ${user.name}, we received a request to reset the password for <strong>${user.email}</strong>.</p>
-    <div style="text-align:center;margin:28px 0;">
-      <a href="${user.resetUrl}"
-         style="background-color:#1a1a1a;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;letter-spacing:1px;text-transform:uppercase;font-size:13px;">
-        Reset Password
-      </a>
-    </div>
-    <p style="color:#555;font-size:13px;">This link expires in 1 hour. If the button doesn't work, copy and paste this URL into your browser:</p>
-    <p style="color:#1a73e8;font-size:13px;word-break:break-all;">${user.resetUrl}</p>
-    <div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#888;text-align:center;">
-      <p>If you didn't request a password reset, you can safely ignore this email — your password will not change.</p>
-    </div>
-  `;
-
-  return sendMail({
-    to: user.email,
-    subject: 'Reset your Koorm password',
-    html: emailShell('Password Reset Request', body),
-  });
-};
-
 module.exports = {
   sendOrderConfirmationToCustomer,
   sendOrderNotificationToAdmin,
@@ -310,5 +287,4 @@ module.exports = {
   sendOrderStatusUpdateToCustomer,
   sendWelcomeEmail,
   sendVerificationCodeEmail,
-  sendPasswordResetEmail,
 };

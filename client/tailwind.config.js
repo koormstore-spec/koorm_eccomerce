@@ -4,11 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#303030',
-        muted: '#646464',
-        accent: '#79583e',
-        cream: '#f7f4ef',
-        sand: '#e9e2d6',
+        ink: '#28352c',
+        muted: '#6b7069',
+        accent: '#52654b',
+        cream: '#faf9f6',
+        sand: '#e4e5dd',
         clay: '#b08968',
       },
       fontFamily: {

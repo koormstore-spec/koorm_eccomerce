@@ -24,11 +24,13 @@ export default function ZoomImage({ src, alt, className = '', children }) {
       <img
         src={src}
         alt={alt}
-        className={`product-zoom-image h-full w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none ${zoomed ? 'scale-[1.8]' : ''}`}
+        width="1000"
+        height="1333"
+        className={`product-zoom-image h-full w-full object-contain transition-transform duration-500 ease-out motion-reduce:transition-none ${zoomed ? 'scale-[1.8]' : ''}`}
         style={{ transformOrigin: origin }}
       />
       <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1.5 text-[12px] font-semibold text-ink">
-        {zoomed ? 'Click to zoom out' : 'Click to zoom in'}
+        {zoomed ? '− Zoom out' : '+ Zoom in'}
       </span>
       {children}
     </button>

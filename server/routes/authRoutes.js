@@ -3,7 +3,8 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const {
   register,
-  login,
+  requestLoginCode,
+  verifyLoginCode,
   getProfile,
   updateProfile,
   listAddresses,
@@ -11,16 +12,13 @@ const {
   deleteAddress,
   verifyEmail,
   resendVerificationCode,
-  forgotPassword,
-  resetPassword,
 } = require('../controllers/authController');
 
 router.post('/register', register);
-router.post('/login', login);
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', resendVerificationCode);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+router.post('/request-login-code', requestLoginCode);
+router.post('/verify-login-code', verifyLoginCode);
 router.get('/me', protect, getProfile);
 router.put('/me', protect, updateProfile);
 router.get('/addresses', protect, listAddresses);

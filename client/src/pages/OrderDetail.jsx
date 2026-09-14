@@ -47,7 +47,7 @@ export default function OrderDetail() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-serif text-2xl">{order.order_number}</h1>
           <p className="text-muted text-sm mt-1">
@@ -57,24 +57,30 @@ export default function OrderDetail() {
         <span className={`text-xs px-3 py-1 rounded-full capitalize ${STATUS_COLORS[order.status]}`}>{order.status}</span>
       </div>
 
-      <div className="border border-sand p-6 mb-6">
+      <div className="border border-sand p-4 sm:p-6 mb-6">
         <h2 className="font-medium mb-4">Items</h2>
         <div className="divide-y divide-sand">
           {order.items.map((item) => (
-            <div key={item.id} className="flex gap-4 py-3">
+            <div key={item.id} className="grid grid-cols-[4rem_minmax(0,1fr)] gap-x-4 gap-y-2 py-3 sm:flex">
               <div className="h-20 w-16 bg-sand/40 overflow-hidden shrink-0">
                 {item.product_image && <img src={item.product_image} alt="" className="h-full w-full object-cover" />}
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm">{item.product_name}</p>
                 <p className="text-xs text-muted">Size: {item.size} · Qty: {item.quantity}</p>
               </div>
-              <p className="font-medium text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
+              <p className="col-start-2 font-medium text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>
             </div>
           ))}
         </div>
         <div className="border-t border-sand mt-4 pt-4 space-y-1 text-sm">
           <div className="flex justify-between"><span className="text-muted">Subtotal</span><span>₹{Number(order.items_total).toLocaleString('en-IN')}</span></div>
+          {Number(order.discount_amount) > 0 && (
+            <div className="flex justify-between text-green-700">
+              <span>Coupon {order.coupon_code ? `(${order.coupon_code})` : ''}</span>
+              <span>&minus;₹{Number(order.discount_amount).toLocaleString('en-IN')}</span>
+            </div>
+          )}
           <div className="flex justify-between"><span className="text-muted">Shipping</span><span>{Number(order.shipping_fee) === 0 ? 'Free' : `₹${order.shipping_fee}`}</span></div>
           <div className="flex justify-between font-semibold text-base pt-2 border-t border-sand"><span>Total (COD)</span><span>₹{Number(order.total_amount).toLocaleString('en-IN')}</span></div>
         </div>
@@ -89,7 +95,7 @@ export default function OrderDetail() {
         </p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <Link to="/profile" className="btn-outline">Back to Orders</Link>
         {canCancel && (
           <button onClick={cancelOrder} disabled={cancelling} className="btn-outline text-red-600 border-red-300 hover:bg-red-600 hover:text-white">

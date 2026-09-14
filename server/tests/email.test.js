@@ -12,7 +12,6 @@ const {
   sendOrderStatusUpdateToCustomer,
   sendWelcomeEmail,
   sendVerificationCodeEmail,
-  sendPasswordResetEmail,
 } = require('../utils/email');
 
 const sampleOrder = {
@@ -106,19 +105,5 @@ describe('sendVerificationCodeEmail', () => {
     expect(mail.subject).toContain('482913');
     expect(mail.html).toContain('482913');
     expect(mail.html).toContain('10 minutes');
-  });
-});
-
-describe('sendPasswordResetEmail', () => {
-  it('emails the reset link to the user', async () => {
-    await sendPasswordResetEmail({
-      name: 'Jane',
-      email: 'jane@example.com',
-      resetUrl: 'http://localhost:5173/reset-password/abc123',
-    });
-
-    const mail = mockSendMail.mock.calls[0][0];
-    expect(mail.to).toBe('jane@example.com');
-    expect(mail.html).toContain('http://localhost:5173/reset-password/abc123');
   });
 });

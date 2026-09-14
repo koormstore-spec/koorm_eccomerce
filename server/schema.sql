@@ -7,14 +7,14 @@ CREATE DATABASE IF NOT EXISTS koorm_db CHARACTER SET utf8mb4 COLLATE utf8mb4_uni
 USE koorm_db;
 
 -- ---------- USERS (customers only) ----------
+-- Passwordless: identity is proven by emailed one-time codes, both at
+-- registration and at login. See migrations/002_drop_password.sql for
+-- upgrading an existing database that still has the old password column.
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(120) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
   phone VARCHAR(20),
-  reset_token VARCHAR(255) NULL,
-  reset_token_expiry DATETIME NULL,
   is_verified TINYINT(1) NOT NULL DEFAULT 0,
   verification_code VARCHAR(255) NULL,
   verification_code_expiry DATETIME NULL,
@@ -91,6 +91,21 @@ CREATE TABLE IF NOT EXISTS wishlist_items (
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
+-- ---------- COUPONS ----------
+CREATE TABLE IF NOT EXISTS coupons (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(40) NOT NULL UNIQUE,
+  discount_type ENUM('percent','flat') NOT NULL DEFAULT 'percent',
+  discount_value DECIMAL(10,2) NOT NULL,
+  min_order_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  max_discount_amount DECIMAL(10,2) NULL,
+  usage_limit INT NULL,
+  used_count INT NOT NULL DEFAULT 0,
+  expires_at DATETIME NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ---------- ORDERS ----------
 CREATE TABLE IF NOT EXISTS orders (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -98,6 +113,8 @@ CREATE TABLE IF NOT EXISTS orders (
   order_number VARCHAR(30) NOT NULL UNIQUE,
   items_total DECIMAL(10,2) NOT NULL,
   shipping_fee DECIMAL(10,2) NOT NULL DEFAULT 0,
+  coupon_code VARCHAR(40) NULL,
+  discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
   total_amount DECIMAL(10,2) NOT NULL,
   payment_method VARCHAR(30) NOT NULL DEFAULT 'COD',
   status ENUM('placed','processing','shipped','delivered','cancelled') NOT NULL DEFAULT 'placed',

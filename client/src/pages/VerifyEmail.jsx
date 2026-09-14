@@ -1,8 +1,10 @@
+import AuthLayout from '../components/AuthLayout';
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function VerifyEmail() {
+  const { verifyEmail, resendVerificationCode } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState(location.state?.email || '');
@@ -19,7 +21,7 @@ export default function VerifyEmail() {
     setMessage('');
     setLoading(true);
     try {
-      await api.post('/auth/verify-email', { email, code });
+      await verifyEmail(email, code);
       setVerified(true);
       setTimeout(() => navigate('/'), 1800);
     } catch (err) {
@@ -34,7 +36,7 @@ export default function VerifyEmail() {
     setMessage('');
     setResending(true);
     try {
-      const { data } = await api.post('/auth/resend-verification', { email });
+      const data = await resendVerificationCode(email);
       setMessage(data.message);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to resend code');
@@ -44,7 +46,7 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div className="container-x py-20 max-w-md mx-auto fade-in">
+    <AuthLayout>
       <h1 className="section-title mb-2 text-center">Verify Your Email</h1>
       <p className="text-center text-muted mb-8 text-sm">
         We've sent a 6-digit code to your email. Enter it below to activate your account.
@@ -94,6 +96,6 @@ export default function VerifyEmail() {
       <p className="text-center text-sm text-muted mt-6">
         <Link to="/" className="text-accent font-medium">Skip for now</Link>
       </p>
-    </div>
+    </AuthLayout>
   );
 }

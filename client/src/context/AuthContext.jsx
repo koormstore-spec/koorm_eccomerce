@@ -9,18 +9,40 @@ export const AuthProvider = ({ children }) => {
     return stored ? JSON.parse(stored) : null;
   });
 
-  const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  const setSession = (data) => {
     localStorage.setItem('koorm_user', JSON.stringify(data));
     setUser(data);
     return data;
   };
 
-  const register = async (name, email, password, phone) => {
-    const { data } = await api.post('/auth/register', { name, email, password, phone });
-    localStorage.setItem('koorm_user', JSON.stringify(data));
-    setUser(data);
+  // Step 1 of registration: submit details, get an emailed code.
+  const register = async (name, email, phone) => {
+    const { data } = await api.post('/auth/register', { name, email, phone });
     return data;
+  };
+
+  // Step 2 of registration: the code matching completes account creation
+  // and logs the user in immediately.
+  const verifyEmail = async (email, code) => {
+    const { data } = await api.post('/auth/verify-email', { email, code });
+    return setSession(data);
+  };
+
+  const resendVerificationCode = async (email) => {
+    const { data } = await api.post('/auth/resend-verification', { email });
+    return data;
+  };
+
+  // Step 1 of login: email a code to an already-verified account.
+  const requestLoginCode = async (email) => {
+    const { data } = await api.post('/auth/request-login-code', { email });
+    return data;
+  };
+
+  // Step 2 of login: the matching code logs the user in.
+  const verifyLoginCode = async (email, code) => {
+    const { data } = await api.post('/auth/verify-login-code', { email, code });
+    return setSession(data);
   };
 
   const logout = () => {
@@ -29,7 +51,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        register,
+        verifyEmail,
+        resendVerificationCode,
+        requestLoginCode,
+        verifyLoginCode,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
