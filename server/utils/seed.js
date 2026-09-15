@@ -1,10 +1,8 @@
 // Creates a default admin account in the separate admin database. Run with: npm run seed
 require('dotenv').config();
-const bcrypt = require('bcryptjs');
 const { adminPool } = require('../config/db');
 
-const ADMIN_EMAIL = 'admin@koorm.com';
-const ADMIN_PASSWORD = 'Admin@123';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'koormstore@gmail.com').split(',')[0].trim();
 
 (async () => {
   try {
@@ -13,14 +11,12 @@ const ADMIN_PASSWORD = 'Admin@123';
       console.log('Admin account already exists:', ADMIN_EMAIL);
       process.exit(0);
     }
-    const hashed = await bcrypt.hash(ADMIN_PASSWORD, 10);
     await adminPool.query(
-      'INSERT INTO admins (name, email, password) VALUES (?, ?, ?)',
-      ['Koorm Admin', ADMIN_EMAIL, hashed]
+      'INSERT INTO admins (name, email, password) VALUES (?, ?, NULL)',
+      ['Koorm Admin', ADMIN_EMAIL]
     );
-    console.log('Admin account created in koorm_admin_db:');
+    console.log(`Admin email provisioned in shared ${process.env.DB_NAME || 'koorm_db'}. Complete setup from /admin/login:`);
     console.log('  email:', ADMIN_EMAIL);
-    console.log('  password:', ADMIN_PASSWORD);
     process.exit(0);
   } catch (err) {
     console.error('Seed failed:', err.message);

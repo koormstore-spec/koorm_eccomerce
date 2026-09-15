@@ -1,6 +1,6 @@
 -- Koorm Clothing E-Commerce Database Schema
 -- Run this file against MySQL to create the database, tables, and seed data.
--- Admin accounts live entirely separately — see admin_schema.sql (koorm_admin_db).
+-- Admin accounts use the shared database — see admin_schema.sql.
 -- This database (koorm_db) holds only customers and catalog/order data.
 
 CREATE DATABASE IF NOT EXISTS koorm_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

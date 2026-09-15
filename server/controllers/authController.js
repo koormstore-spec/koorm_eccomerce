@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { pool } = require('../config/db');
+const { userModel, addressModel } = require('../models');
 const { generateToken } = require('../utils/generateToken');
 const { sendWelcomeEmail, sendVerificationCodeEmail } = require('../utils/email');
 
@@ -10,10 +11,7 @@ const generateVerificationCode = () => String(crypto.randomInt(0, 1000000)).padS
 const issueVerificationCode = async (userId) => {
   const code = generateVerificationCode();
   const codeExpiry = new Date(Date.now() + VERIFICATION_CODE_TTL_MS);
-  await pool.query(
-    'UPDATE users SET verification_code = ?, verification_code_expiry = ? WHERE id = ?',
-    [hashToken(code), codeExpiry, userId]
-  );
+  await userModel.updateVerificationCode(userId, hashToken(code), codeExpiry);
   return code;
 };
 
@@ -24,23 +22,19 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Name and email are required' });
     }
 
-    const [existing] = await pool.query('SELECT id, is_verified FROM users WHERE email = ?', [email]);
+    const existing = await userModel.findByEmail(email);
 
     let userId;
-    if (existing.length > 0) {
-      if (existing[0].is_verified) {
+    if (existing) {
+      if (existing.is_verified) {
         return res.status(400).json({ message: 'An account with this email already exists' });
       }
       // Unverified account from a previous, abandoned signup attempt — reuse
       // it and send a fresh code instead of blocking the user forever.
-      userId = existing[0].id;
-      await pool.query('UPDATE users SET name = ?, phone = ? WHERE id = ?', [name, phone || null, userId]);
+      userId = existing.id;
+      await userModel.update(userId, { name, phone: phone || null });
     } else {
-      const [result] = await pool.query(
-        'INSERT INTO users (name, email, phone) VALUES (?, ?, ?)',
-        [name, email, phone || null]
-      );
-      userId = result.insertId;
+      userId = await userModel.create({ name, email, phone });
     }
 
     const code = await issueVerificationCode(userId);
@@ -65,23 +59,15 @@ const verifyEmail = async (req, res) => {
       return res.status(400).json({ message: 'Email and code are required' });
     }
 
-    const [rows] = await pool.query(
-      `SELECT id, name, phone, is_verified FROM users
-       WHERE email = ? AND verification_code = ? AND verification_code_expiry > NOW()`,
-      [email, hashToken(code)]
-    );
-    if (rows.length === 0) {
+    const user = await userModel.findByVerificationCode(email, hashToken(code));
+    if (!user) {
       return res.status(400).json({ message: 'Invalid or expired verification code' });
     }
-    if (rows[0].is_verified) {
+    if (user.is_verified) {
       return res.status(400).json({ message: 'This account is already verified' });
     }
 
-    const user = rows[0];
-    await pool.query(
-      'UPDATE users SET is_verified = 1, verification_code = NULL, verification_code_expiry = NULL WHERE id = ?',
-      [user.id]
-    );
+    await userModel.markVerified(user.id);
 
     // Verification is the moment the account truly comes into existence, so
     // this doubles as first login: hand back a token right away.
@@ -109,16 +95,16 @@ const resendVerificationCode = async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const [rows] = await pool.query('SELECT id, name, is_verified FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) {
+    const user = await userModel.findByEmail(email);
+    if (!user) {
       return res.status(404).json({ message: 'No account found with that email' });
     }
-    if (rows[0].is_verified) {
+    if (user.is_verified) {
       return res.status(400).json({ message: 'This account is already verified' });
     }
 
-    const code = await issueVerificationCode(rows[0].id);
-    sendVerificationCodeEmail({ name: rows[0].name, email, code }).catch((err) =>
+    const code = await issueVerificationCode(user.id);
+    sendVerificationCodeEmail({ name: user.name, email, code }).catch((err) =>
       console.error('Verification code email dispatch failed:', err.message)
     );
 
@@ -136,16 +122,16 @@ const requestLoginCode = async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    const [rows] = await pool.query('SELECT id, name, is_verified FROM users WHERE email = ?', [email]);
-    if (rows.length === 0) {
+    const user = await userModel.findByEmail(email);
+    if (!user) {
       return res.status(404).json({ message: 'No account found with that email' });
     }
-    if (!rows[0].is_verified) {
+    if (!user.is_verified) {
       return res.status(400).json({ message: 'Please finish verifying your email first', unverified: true });
     }
 
-    const code = await issueVerificationCode(rows[0].id);
-    sendVerificationCodeEmail({ name: rows[0].name, email, code }).catch((err) =>
+    const code = await issueVerificationCode(user.id);
+    sendVerificationCodeEmail({ name: user.name, email, code }).catch((err) =>
       console.error('Login code email dispatch failed:', err.message)
     );
 
@@ -163,20 +149,12 @@ const verifyLoginCode = async (req, res) => {
       return res.status(400).json({ message: 'Email and code are required' });
     }
 
-    const [rows] = await pool.query(
-      `SELECT id, name, phone FROM users
-       WHERE email = ? AND verification_code = ? AND verification_code_expiry > NOW()`,
-      [email, hashToken(code)]
-    );
-    if (rows.length === 0) {
+    const user = await userModel.findByVerificationCode(email, hashToken(code));
+    if (!user) {
       return res.status(401).json({ message: 'Invalid or expired code' });
     }
 
-    const user = rows[0];
-    await pool.query(
-      'UPDATE users SET verification_code = NULL, verification_code_expiry = NULL WHERE id = ?',
-      [user.id]
-    );
+    await userModel.clearVerificationCode(user.id);
 
     const token = generateToken(user.id);
     res.json({ id: user.id, name: user.name, email, phone: user.phone, token });
@@ -186,22 +164,17 @@ const verifyLoginCode = async (req, res) => {
 };
 
 const getProfile = async (req, res) => {
-  res.json(req.user);
+  res.json(await userModel.findById(req.user.id));
 };
 
 const updateProfile = async (req, res) => {
   try {
     const { name, phone } = req.body;
-    await pool.query('UPDATE users SET name = ?, phone = ? WHERE id = ?', [
-      name || req.user.name,
-      phone !== undefined ? phone : req.user.phone,
-      req.user.id,
-    ]);
-    const [rows] = await pool.query(
-      'SELECT id, name, email, phone FROM users WHERE id = ?',
-      [req.user.id]
-    );
-    res.json(rows[0]);
+    await userModel.update(req.user.id, {
+      name: name || req.user.name,
+      phone: phone !== undefined ? phone : req.user.phone,
+    });
+    res.json(await userModel.findById(req.user.id));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -209,11 +182,7 @@ const updateProfile = async (req, res) => {
 
 const listAddresses = async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT * FROM addresses WHERE user_id = ? ORDER BY is_default DESC, id DESC',
-      [req.user.id]
-    );
-    res.json(rows);
+    res.json(await addressModel.listByUserId(req.user.id));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -226,15 +195,12 @@ const addAddress = async (req, res) => {
       return res.status(400).json({ message: 'Missing required address fields' });
     }
     if (is_default) {
-      await pool.query('UPDATE addresses SET is_default = 0 WHERE user_id = ?', [req.user.id]);
+      await addressModel.clearDefaultForUser(req.user.id);
     }
-    const [result] = await pool.query(
-      `INSERT INTO addresses (user_id, full_name, phone, address_line1, address_line2, city, state, pincode, is_default)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [req.user.id, full_name, phone, address_line1, address_line2 || null, city, state, pincode, is_default ? 1 : 0]
-    );
-    const [rows] = await pool.query('SELECT * FROM addresses WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const address = await addressModel.create(req.user.id, {
+      full_name, phone, address_line1, address_line2, city, state, pincode, is_default,
+    });
+    res.status(201).json(address);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -242,7 +208,7 @@ const addAddress = async (req, res) => {
 
 const deleteAddress = async (req, res) => {
   try {
-    await pool.query('DELETE FROM addresses WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    await addressModel.removeForUser(req.params.id, req.user.id);
     res.json({ message: 'Address removed' });
   } catch (err) {
     res.status(500).json({ message: err.message });
