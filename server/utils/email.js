@@ -241,7 +241,7 @@ const sendWelcomeEmail = async (user) => {
     <p style="color:#555;">Your account has been created successfully with <strong>${user.email}</strong>.</p>
     <p style="color:#555;">Thoughtfully designed everyday clothing — premium fabrics, honest pricing, and Cash on Delivery on every order.</p>
     <div style="text-align:center;margin:28px 0;">
-      <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/shop"
+      <a href="${process.env.NODE_ENV === 'production' ? 'https://koormcollection.com' : 'http://localhost:5173'}/shop" 
          style="background-color:#1a1a1a;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;letter-spacing:1px;text-transform:uppercase;font-size:13px;">
         Start Shopping
       </a>
@@ -280,6 +280,23 @@ const sendVerificationCodeEmail = async (user) => {
   });
 };
 
+const sendAdminVerificationCodeEmail = async (admin) => {
+  const body = `
+    <h2 style="color:#333;margin-top:0;">Set up your Koorm admin account</h2>
+    <p style="color:#555;">Use this code to verify <strong>${admin.email}</strong> and create your admin password.</p>
+    <div style="text-align:center;margin:28px 0;">
+      <span style="display:inline-block;background-color:#f9f9f9;border:1px dashed #ccc;border-radius:6px;padding:16px 32px;font-size:32px;font-weight:bold;letter-spacing:8px;color:#1a1a1a;">${admin.code}</span>
+    </div>
+    <p style="color:#555;font-size:13px;text-align:center;">This code expires in 10 minutes.</p>
+  `;
+
+  return sendMail({
+    to: admin.email,
+    subject: `${admin.code} is your Koorm admin verification code`,
+    html: emailShell('Admin Account Setup', body),
+  });
+};
+
 module.exports = {
   sendOrderConfirmationToCustomer,
   sendOrderNotificationToAdmin,
@@ -287,4 +304,5 @@ module.exports = {
   sendOrderStatusUpdateToCustomer,
   sendWelcomeEmail,
   sendVerificationCodeEmail,
+  sendAdminVerificationCodeEmail,
 };

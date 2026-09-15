@@ -12,27 +12,24 @@ const basePoolConfig = {
   dateStrings: true,
 };
 
-// Customer-facing database: users, products, orders, cart, wishlist, reviews.
+const databaseName = process.env.DB_NAME || 'koorm_db';
+
+// Shared database: users, products, orders, cart, wishlist, reviews, and admins.
 const pool = mysql.createPool({
   ...basePoolConfig,
-  database: process.env.DB_NAME || 'koorm_db',
+  database: databaseName,
 });
 
-// Fully separate database holding only admin accounts.
-const adminPool = mysql.createPool({
-  ...basePoolConfig,
-  database: process.env.ADMIN_DB_NAME || 'koorm_admin_db',
-});
+// Admin queries use the same database connection as customer queries.
+const adminPool = pool;
 
 const testConnection = async () => {
   try {
     const conn = await pool.getConnection();
-    console.log('MySQL connected successfully (koorm_db)');
+    console.log(`MySQL connected successfully (${databaseName})`);
     conn.release();
 
-    const adminConn = await adminPool.getConnection();
-    console.log('MySQL connected successfully (koorm_admin_db)');
-    adminConn.release();
+    console.log(`MySQL connected successfully (shared ${databaseName})`);
   } catch (err) {
     console.error('MySQL connection failed:', err.message);
     process.exit(1);

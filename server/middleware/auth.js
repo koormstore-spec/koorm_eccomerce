@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { pool, adminPool } = require('../config/db');
+const { userModel, adminModel } = require('../models');
 
 const protect = async (req, res, next) => {
   try {
@@ -10,22 +11,18 @@ const protect = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const [rows] = await pool.query(
-      'SELECT id, name, email, phone FROM users WHERE id = ?',
-      [decoded.id]
-    );
-    if (rows.length === 0) {
+    const user = await userModel.findById(decoded.id);
+    if (!user) {
       return res.status(401).json({ message: 'Not authorized, user not found' });
     }
-    req.user = rows[0];
+    req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Not authorized, token failed' });
   }
 };
 
-// Fully independent from `protect` — verifies against ADMIN_JWT_SECRET and
-// the separate koorm_admin_db, never the customer users table.
+// Uses a separate token secret and the shared koorm_db admins table.
 const protectAdmin = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -35,14 +32,11 @@ const protectAdmin = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
 
-    const [rows] = await adminPool.query(
-      'SELECT id, name, email FROM admins WHERE id = ?',
-      [decoded.id]
-    );
-    if (rows.length === 0) {
+    const admin = await adminModel.findById(decoded.id);
+    if (!admin) {
       return res.status(401).json({ message: 'Not authorized, admin not found' });
     }
-    req.admin = rows[0];
+    req.admin = admin;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Not authorized, admin token failed' });

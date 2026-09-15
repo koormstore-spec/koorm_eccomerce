@@ -1,18 +1,28 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { adminPool } = require('../config/db');
+const { adminModel } = require('../models');
 const { generateAdminToken } = require('../utils/generateToken');
+const { sendAdminVerificationCodeEmail } = require('../utils/email');
+
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'koormstore@gmail.com').split(',')[0].trim();
+const CODE_TTL_MS = 10 * 60 * 1000;
+const hashCode = code => crypto.createHash('sha256').update(code).digest('hex');
+const generateCode = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0');
 
 const adminLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const { password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
-    const [rows] = await adminPool.query('SELECT * FROM admins WHERE email = ?', [email]);
-    if (rows.length === 0) {
+    const admin = await adminModel.findByEmail(email);
+    if (!admin) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
-    const admin = rows[0];
+    if (!admin.password) {
+      return res.status(403).json({ message: 'Finish setting up your admin password with the email verification code first' });
+    }
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -29,8 +39,73 @@ const adminLogin = async (req, res) => {
   }
 };
 
+const requestAdminSetupCode = async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    if (email !== ADMIN_EMAIL.toLowerCase()) {
+      return res.status(403).json({ message: 'Use the configured admin email address' });
+    }
+
+    const admin = await adminModel.findByEmail(email);
+    if (admin?.password) {
+      return res.status(400).json({ message: 'This admin account is already set up. Sign in with your password.' });
+    }
+
+    const code = generateCode();
+    const expiry = new Date(Date.now() + CODE_TTL_MS);
+    if (!admin) {
+      await adminModel.createPending(email, hashCode(code), expiry);
+    } else {
+      await adminModel.updateVerificationCode(admin.id, hashCode(code), expiry);
+    }
+
+    sendAdminVerificationCodeEmail({ name: admin?.name || 'Admin', email, code }).catch(err =>
+      console.error('Admin verification email dispatch failed:', err.message)
+    );
+    res.json({ message: 'A verification code has been sent to the admin email address.' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const verifyAdminSetup = async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const code = String(req.body.code || '').trim();
+    const password = String(req.body.password || '');
+    if (!email || !code || !password) {
+      return res.status(400).json({ message: 'Email, verification code, and password are required' });
+    }
+    if (email !== ADMIN_EMAIL.toLowerCase()) {
+      return res.status(403).json({ message: 'Use the configured admin email address' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
+    const admin = await adminModel.findByVerificationCode(email, hashCode(code));
+    if (!admin) {
+      return res.status(400).json({ message: 'Invalid or expired verification code' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await adminModel.setPassword(admin.id, hashedPassword);
+
+    const token = generateAdminToken(admin.id);
+    res.json({ id: admin.id, name: admin.name, email: admin.email, token });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 const getAdminProfile = async (req, res) => {
   res.json(req.admin);
 };
 
-module.exports = { adminLogin, getAdminProfile };
+module.exports = {
+  adminLogin,
+  requestAdminSetupCode,
+  verifyAdminSetup,
+  getAdminProfile,
+};

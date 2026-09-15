@@ -81,7 +81,7 @@ describe('protect (customer auth)', () => {
   });
 });
 
-describe('protectAdmin (admin auth — fully separate from protect)', () => {
+describe('protectAdmin (admin auth — separate token flow from protect)', () => {
   it('rejects a request with no Authorization header', async () => {
     const req = { headers: {} };
     const res = mockRes();

@@ -16,13 +16,25 @@ export const AdminAuthProvider = ({ children }) => {
     return data;
   };
 
+  const requestAdminSetupCode = async (email) => {
+    const { data } = await adminApi.post('/admin/auth/request-setup-code', { email });
+    return data;
+  };
+
+  const verifyAdminSetup = async (email, code, password) => {
+    const { data } = await adminApi.post('/admin/auth/verify-setup', { email, code, password });
+    localStorage.setItem('koorm_admin', JSON.stringify(data));
+    setAdmin(data);
+    return data;
+  };
+
   const adminLogout = () => {
     localStorage.removeItem('koorm_admin');
     setAdmin(null);
   };
 
   return (
-    <AdminAuthContext.Provider value={{ admin, adminLogin, adminLogout }}>
+    <AdminAuthContext.Provider value={{ admin, adminLogin, requestAdminSetupCode, verifyAdminSetup, adminLogout }}>
       {children}
     </AdminAuthContext.Provider>
   );

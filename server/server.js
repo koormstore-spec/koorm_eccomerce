@@ -2,8 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const { initializeDatabase } = require('./config/databaseInit');
 const { testConnection } = require('./config/db');
-const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { notFound, errorHandler, logErrorResponses } = require('./middleware/errorHandler');
+const { logError } = require('./utils/logger');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -18,12 +20,20 @@ const adminAuthRoutes = require('./routes/adminAuthRoutes');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://koormcollection.com',
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(logErrorResponses);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -38,8 +48,23 @@ app.use('/api/admin', adminRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+process.on('uncaughtException', (err) => {
+  logError(err, null, { source: 'uncaughtException' });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logError(reason, null, { source: 'unhandledRejection' });
+});
+
 const PORT = process.env.PORT || 5000;
 
-testConnection().then(() => {
-  app.listen(PORT, () => console.log(`Koorm API server running on port ${PORT}`));
-});
+initializeDatabase()
+  .then(() => testConnection())
+  .then(() => {
+    app.listen(PORT, () => console.log(`Koorm API server running on port ${PORT}`));
+  })
+  .catch((err) => {
+    logError(err, null, { source: 'databaseInitialization' });
+    process.exit(1);
+  });
