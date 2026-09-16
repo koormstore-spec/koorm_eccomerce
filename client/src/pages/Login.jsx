@@ -2,11 +2,22 @@ import AuthLayout from '../components/AuthLayout';
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { readPendingAdd, pendingAddPath } from '../utils/pendingCart';
+import { BagIcon } from '../components/Icons';
+
+// Back to wherever they were headed — the guarded page they were stopped at,
+// or the product whose "Add to bag" sent them here in the first place.
+export const postAuthRedirect = (state) => {
+  const from = state?.from;
+  if (from?.pathname) return `${from.pathname}${from.search || ''}`;
+  return pendingAddPath() || '/';
+};
 
 export default function Login() {
   const { requestLoginCode, verifyLoginCode } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const pendingAdd = readPendingAdd();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
@@ -39,7 +50,7 @@ export default function Login() {
     setLoading(true);
     try {
       await verifyLoginCode(email, code);
-      navigate(location.state?.from?.pathname || '/');
+      navigate(postAuthRedirect(location.state), { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -53,6 +64,16 @@ export default function Login() {
       <p className="text-center text-muted mb-8 text-sm">
         {codeSent ? 'Enter the code we emailed you to continue' : 'Login with a code sent to your email'}
       </p>
+
+      {pendingAdd && (
+        <div className="coupon-applied mb-6 border-clay/40 bg-clay/10">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-cream"><BagIcon width={15} height={15} /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold">Your pick is waiting</p>
+            <p className="mt-0.5 text-[12px] leading-5 text-muted">Sign in and we will drop size {pendingAdd.size} straight into your bag.</p>
+          </div>
+        </div>
+      )}
 
       {!codeSent ? (
         <form onSubmit={handleRequestCode} className="space-y-4">
@@ -102,7 +123,7 @@ export default function Login() {
       )}
 
       <p className="text-center text-sm text-muted mt-6">
-        New to Koorm? <Link to="/register" className="text-accent font-medium">Create an account</Link>
+        New to Koorm? <Link to="/register" state={location.state} className="text-accent font-medium">Create an account</Link>
       </p>
     </AuthLayout>
   );

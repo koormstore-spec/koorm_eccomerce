@@ -1,11 +1,12 @@
 import AuthLayout from '../components/AuthLayout';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ name: '', email: '', phone: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,8 @@ export default function Register() {
     setLoading(true);
     try {
       await register(form.name, form.email, form.phone);
-      navigate('/verify-email', { state: { email: form.email } });
+      // `from` rides along so verification lands them back where they started.
+      navigate('/verify-email', { state: { email: form.email, from: location.state?.from } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -56,7 +58,7 @@ export default function Register() {
         </button>
       </form>
       <p className="text-center text-sm text-muted mt-6">
-        Already have an account? <Link to="/login" className="text-accent font-medium">Login</Link>
+        Already have an account? <Link to="/login" state={location.state} className="text-accent font-medium">Login</Link>
       </p>
     </AuthLayout>
   );

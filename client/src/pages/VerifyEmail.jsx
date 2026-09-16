@@ -2,6 +2,7 @@ import AuthLayout from '../components/AuthLayout';
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { postAuthRedirect } from './Login';
 
 export default function VerifyEmail() {
   const { verifyEmail, resendVerificationCode } = useAuth();
@@ -23,7 +24,8 @@ export default function VerifyEmail() {
     try {
       await verifyEmail(email, code);
       setVerified(true);
-      setTimeout(() => navigate('/'), 1800);
+      const destination = postAuthRedirect(location.state);
+      setTimeout(() => navigate(destination, { replace: true }), 1800);
     } catch (err) {
       setError(err.response?.data?.message || 'Verification failed');
     } finally {

@@ -7,9 +7,11 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  notifyRestock,
 } = require('../controllers/productController');
 
 router.get('/', getProducts);
+router.post('/:id/notify-restock', notifyRestock);
 router.get('/:slug', getProductBySlug);
 router.post('/', protectAdmin, createProduct);
 router.put('/:id', protectAdmin, updateProduct);

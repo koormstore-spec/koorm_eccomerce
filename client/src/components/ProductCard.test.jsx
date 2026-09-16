@@ -94,4 +94,27 @@ describe('ProductCard', () => {
     const links = screen.getAllByRole('link');
     expect(links[0]).toHaveAttribute('href', '/product/linen-shirt-rust-red');
   });
+
+  it('shows a low-stock notice when few units remain', () => {
+    renderCard({ ...baseProduct, stock: 3 });
+    expect(screen.getByText('Only 3 left')).toBeInTheDocument();
+  });
+
+  it('shows no low-stock notice when stock is healthy', () => {
+    renderCard({ ...baseProduct, stock: 40 });
+    expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
+  });
+
+  it('shows a sold-out badge and a notify-me link instead of quick add when stock is zero', () => {
+    renderCard({ ...baseProduct, stock: 0 }, { user: { id: 1, name: 'Jane' } });
+    expect(screen.getByText('Sold out')).toBeInTheDocument();
+    expect(screen.getByText("Notify me when it's back →")).toBeInTheDocument();
+    expect(screen.queryByText('S')).not.toBeInTheDocument();
+  });
+
+  it('prefers the sold-out badge over a sale badge', () => {
+    renderCard({ ...baseProduct, stock: 0, price: 2000, discount_price: 1500 });
+    expect(screen.getByText('Sold out')).toBeInTheDocument();
+    expect(screen.queryByText('-25%')).not.toBeInTheDocument();
+  });
 });

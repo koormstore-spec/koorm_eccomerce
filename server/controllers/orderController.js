@@ -31,21 +31,36 @@ const createOrder = async (req, res) => {
       return res.status(400).json({ message: 'Complete shipping address is required' });
     }
 
+    // Everything below that guards a scarce resource — stock, a coupon's
+    // remaining redemptions — runs inside this transaction with FOR UPDATE
+    // row locks. Without that, the check (is there stock? is the coupon
+    // under its usage limit?) and the act (decrement stock, increment
+    // used_count) are two separate round-trips with a gap between them: two
+    // concurrent checkouts can both read "1 unit left" / "0 of 1 used" and
+    // both pass, overselling the item or letting a one-time coupon be
+    // redeemed twice. The lock serializes the second request behind the
+    // first, so it re-checks against the first order's already-committed
+    // effect instead of stale data.
+    await connection.beginTransaction();
+
     const [cartRows] = await connection.query(
       `SELECT ci.id, ci.size, ci.quantity, p.id AS product_id, p.name, p.images,
               COALESCE(p.discount_price, p.price) AS price, p.stock
        FROM cart_items ci JOIN products p ON ci.product_id = p.id
-       WHERE ci.user_id = ?`,
+       WHERE ci.user_id = ?
+       FOR UPDATE`,
       [req.user.id]
     );
 
     if (cartRows.length === 0) {
+      await connection.rollback();
       connection.release();
       return res.status(400).json({ message: 'Your cart is empty' });
     }
 
     for (const item of cartRows) {
       if (item.stock < item.quantity) {
+        await connection.rollback();
         connection.release();
         return res.status(400).json({ message: `${item.name} has insufficient stock` });
       }
@@ -55,19 +70,22 @@ const createOrder = async (req, res) => {
     const shippingFee = itemsTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
 
     // Re-validated here (not trusted from the client) so a coupon that
-    // expired, hit its usage limit, or never existed can't be applied.
+    // expired, hit its usage limit, or never existed can't be applied. The
+    // row lock is what makes "hit its usage limit" safe to rely on above.
     let discountAmount = 0;
     let appliedCoupon = null;
     if (coupon_code) {
-      const [coupons] = await connection.query('SELECT * FROM coupons WHERE code = ?', [
+      const [coupons] = await connection.query('SELECT * FROM coupons WHERE code = ? FOR UPDATE', [
         coupon_code.trim().toUpperCase(),
       ]);
       if (coupons.length === 0) {
+        await connection.rollback();
         connection.release();
         return res.status(400).json({ message: 'Invalid coupon code' });
       }
       const result = evaluateCoupon(coupons[0], itemsTotal);
       if (result.error) {
+        await connection.rollback();
         connection.release();
         return res.status(400).json({ message: result.error });
       }
@@ -77,8 +95,6 @@ const createOrder = async (req, res) => {
 
     const totalAmount = itemsTotal + shippingFee - discountAmount;
     const orderNumber = generateOrderNumber();
-
-    await connection.beginTransaction();
 
     const [orderResult] = await connection.query(
       `INSERT INTO orders

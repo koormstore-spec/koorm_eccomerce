@@ -107,6 +107,33 @@ export const CheckShieldIcon = (props) => (
   </svg>
 );
 
+export const TicketIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 9V7h18v2a3 3 0 0 0 0 6v2H3v-2a3 3 0 0 0 0-6Z" />
+    <path d="M14 8v8" strokeDasharray="2 2.5" />
+  </svg>
+);
+
+export const CheckIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="m5 12.5 4.5 4.5L19 7" />
+  </svg>
+);
+
+export const MapPinIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" />
+    <circle cx="12" cy="9.5" r="2.3" />
+  </svg>
+);
+
+export const RulerIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="7" width="18" height="10" rx="1.5" />
+    <path d="M7 7v3M11 7v4M15 7v3" />
+  </svg>
+);
+
 export const StarIcon = ({ filled, ...props }) => (
   <svg {...base} fill={filled ? 'currentColor' : 'none'} {...props}>
     <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" />

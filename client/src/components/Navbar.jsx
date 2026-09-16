@@ -23,10 +23,25 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  // Reading scroll inside rAF (and only committing on a real change) keeps the
+  // sticky header off the scroll thread's critical path.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        setScrolled((previous) => {
+          const next = window.scrollY > 8;
+          return next === previous ? previous : next;
+        });
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   const submitSearch = (event) => {
@@ -40,7 +55,7 @@ export default function Navbar() {
   const closeUserMenu = () => setUserMenuOpen(false);
 
   return (
-    <header className={`sticky top-0 z-50 border-b border-sand/80 bg-cream/95 backdrop-blur-xl transition-shadow ${scrolled ? 'shadow-[0_4px_18px_rgba(26,26,26,0.06)]' : ''}`}>
+    <header className={`sticky top-0 z-50 border-b border-sand/80 bg-cream/95 backdrop-blur-md transition-shadow duration-300 ${scrolled ? 'shadow-[0_4px_18px_rgba(26,26,26,0.06)]' : ''}`}>
       <AnnouncementBar />
 
       <div className="container-x grid h-[4.5rem] lg:h-20 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 lg:grid-cols-[1fr_auto_1fr]">
@@ -84,9 +99,10 @@ export default function Navbar() {
             {wishlist?.length > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[9px] font-bold text-white">{wishlist.length}</span>}
           </Link>
 
-          <Link to="/cart" className="btn-icon relative" aria-label="Cart">
+          {/* data-bag-target is the landing point for the flying add-to-bag thumbnail. */}
+          <Link to="/cart" data-bag-target className="btn-icon relative" aria-label={`Cart, ${cartCount} item${cartCount === 1 ? '' : 's'}`}>
             <BagIcon width={18} height={18} />
-            {cartCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[9px] font-bold text-white">{cartCount}</span>}
+            {cartCount > 0 && <span key={cartCount} className="bag-pop absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[9px] font-bold text-white">{cartCount}</span>}
           </Link>
 
           <div className="relative">

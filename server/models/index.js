@@ -9,4 +9,5 @@ module.exports = {
   orderModel: require('./orderModel'),
   reviewModel: require('./reviewModel'),
   adminModel: require('./adminModel'),
+  stockNotificationModel: require('./stockNotificationModel'),
 };

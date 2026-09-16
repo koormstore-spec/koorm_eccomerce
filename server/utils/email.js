@@ -297,6 +297,33 @@ const sendAdminVerificationCodeEmail = async (admin) => {
   });
 };
 
+const storefrontUrl = () => (process.env.NODE_ENV === 'production' ? 'https://koormcollection.com' : 'http://localhost:5173');
+
+const sendBackInStockEmail = async (product, email) => {
+  const body = `
+    <h2 style="color:#333;margin-top:0;">${product.name} is back in stock!</h2>
+    <p style="color:#555;">Good news — the piece you asked about is available again, while stock lasts.</p>
+    <div style="text-align:center;margin:24px 0;">
+      <img src="${product.image || ''}" alt="${product.name}" style="max-width:220px;border-radius:6px;" />
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${storefrontUrl()}/product/${product.slug}"
+         style="background-color:#1a1a1a;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;letter-spacing:1px;text-transform:uppercase;font-size:13px;">
+        Shop it now
+      </a>
+    </div>
+    <div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#888;text-align:center;">
+      <p>You're receiving this because you asked to be notified when this item restocked.</p>
+    </div>
+  `;
+
+  return sendMail({
+    to: email,
+    subject: `Back in stock: ${product.name} - KOORM Store`,
+    html: emailShell('Back In Stock', body),
+  });
+};
+
 module.exports = {
   sendOrderConfirmationToCustomer,
   sendOrderNotificationToAdmin,
@@ -305,4 +332,5 @@ module.exports = {
   sendWelcomeEmail,
   sendVerificationCodeEmail,
   sendAdminVerificationCodeEmail,
+  sendBackInStockEmail,
 };

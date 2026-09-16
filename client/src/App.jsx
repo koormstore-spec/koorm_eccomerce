@@ -1,12 +1,15 @@
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
+import AddedToBagToast from './components/AddedToBagToast';
 import { PrivateRoute, AdminRoute } from './components/PrivateRoute';
 
 import Home from './pages/Home';
 import Shop from './pages/Shop';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import SizeGuide from './pages/SizeGuide';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -31,13 +34,17 @@ function App() {
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   return (
     <div className={`flex flex-col min-h-screen ${pathname.startsWith('/product/') ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
+      <ScrollToTop />
       {!isAdmin && <Navbar />}
-      <main className="min-w-0 flex-1">
+      {/* Keyed on the path so each screen fades in as it mounts — one short,
+          compositor-only transition rather than one per page component. */}
+      <main key={pathname} className="page-enter min-w-0 flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Shop />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/size-guide" element={<SizeGuide />} />
           <Route path="/product/:slug" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/login" element={<Login />} />
@@ -67,6 +74,7 @@ function App() {
         </Routes>
       </main>
       {!isAdmin && <Footer />}
+      {!isAdmin && <AddedToBagToast />}
     </div>
   );
 }

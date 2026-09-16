@@ -1,4 +1,8 @@
 const { pool } = require('../config/db');
+const { stockNotificationModel } = require('../models');
+const { sendBackInStockEmail } = require('../utils/email');
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const parseProduct = (row) => {
   if (!row) return row;
@@ -29,6 +33,10 @@ const getProducts = async (req, res) => {
       maxPrice,
       sort,
       featured,
+      sizes,
+      onSale,
+      inStock,
+      minRating,
       page = 1,
       limit = 20,
     } = req.query;
@@ -58,6 +66,22 @@ const getProducts = async (req, res) => {
     }
     if (featured) {
       where.push('p.is_featured = 1');
+    }
+    // Matches a product carrying ANY of the requested sizes (not all of them).
+    const sizeList = sizes ? sizes.split(',').map((value) => value.trim()).filter(Boolean) : [];
+    if (sizeList.length > 0) {
+      where.push(`(${sizeList.map(() => 'JSON_CONTAINS(p.sizes, JSON_QUOTE(?))').join(' OR ')})`);
+      params.push(...sizeList);
+    }
+    if (onSale === 'true' || onSale === '1') {
+      where.push('p.discount_price IS NOT NULL AND p.discount_price < p.price');
+    }
+    if (inStock === 'true' || inStock === '1') {
+      where.push('p.stock > 0');
+    }
+    if (minRating) {
+      where.push('p.rating >= ?');
+      params.push(Number(minRating));
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -173,6 +197,7 @@ const updateProduct = async (req, res) => {
       name, slug, description, price, discount_price, category_id,
       brand, gender, sizes, colors, images, stock, is_featured,
     } = req.body;
+    const nextStock = stock ?? current.stock;
 
     await pool.query(
       `UPDATE products SET name=?, slug=?, description=?, price=?, discount_price=?, category_id=?,
@@ -189,13 +214,60 @@ const updateProduct = async (req, res) => {
         sizes ? JSON.stringify(sizes) : current.sizes,
         colors ? JSON.stringify(colors) : current.colors,
         images ? JSON.stringify(images) : current.images,
-        stock ?? current.stock,
+        nextStock,
         is_featured !== undefined ? (is_featured ? 1 : 0) : current.is_featured,
         req.params.id,
       ]
     );
     const [rows] = await pool.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
-    res.json(parseProduct(rows[0]));
+    const updated = parseProduct(rows[0]);
+    res.json(updated);
+
+    // Just came back from sold-out: tell everyone who asked to be notified.
+    // Fire-and-forget, isolated from the response already sent above.
+    if (Number(current.stock) <= 0 && Number(nextStock) > 0) {
+      (async () => {
+        try {
+          const pending = await stockNotificationModel.findPendingByProduct(req.params.id);
+          if (pending.length === 0) return;
+          await Promise.all(
+            pending.map((subscription) =>
+              sendBackInStockEmail({ ...updated, image: updated.images?.[0] }, subscription.email)
+            )
+          );
+          await stockNotificationModel.markNotified(pending.map((subscription) => subscription.id));
+        } catch (err) {
+          console.error('Back-in-stock email dispatch failed:', err.message);
+        }
+      })();
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Public: a visitor asks to be emailed once a sold-out product is available
+// again. Silently accepts a re-signup, and still succeeds (without queuing
+// anything) if the item turns out not to be sold out — no error to leak
+// stock levels to a caller who hasn't seen the page.
+const notifyRestock = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !EMAIL_PATTERN.test(email.trim())) {
+      return res.status(400).json({ message: 'A valid email address is required' });
+    }
+
+    const [rows] = await pool.query('SELECT id, stock FROM products WHERE id = ?', [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    if (Number(rows[0].stock) > 0) {
+      return res.json({ message: 'This item is already in stock.' });
+    }
+
+    await stockNotificationModel.create(req.params.id, email.trim().toLowerCase());
+    res.json({ message: "You're on the list — we'll email you the moment this is back." });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -216,4 +288,5 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  notifyRestock,
 };

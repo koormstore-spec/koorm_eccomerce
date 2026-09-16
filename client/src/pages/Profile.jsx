@@ -22,7 +22,7 @@ export default function Profile() {
   }, []);
 
   return (
-    <div className="container-x py-10 fade-in">
+    <div className="container-x py-10">
       <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div className="min-w-0">
           <h1 className="section-title">My Account</h1>

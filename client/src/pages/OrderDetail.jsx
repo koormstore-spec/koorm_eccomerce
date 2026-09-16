@@ -40,7 +40,7 @@ export default function OrderDetail() {
   const canCancel = ['placed', 'processing'].includes(order.status);
 
   return (
-    <div className="container-x py-10 max-w-3xl mx-auto fade-in">
+    <div className="container-x py-10 max-w-3xl mx-auto">
       {location.state?.justPlaced && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-5 py-4 mb-8 text-center">
           🎉 Order placed successfully! You'll pay ₹{Number(order.total_amount).toLocaleString('en-IN')} on delivery.

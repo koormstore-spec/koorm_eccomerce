@@ -6,7 +6,7 @@ export default function Wishlist() {
   const { wishlist } = useCart();
 
   return (
-    <div className="container-x py-10 fade-in">
+    <div className="container-x py-10">
       <h1 className="section-title mb-8">My Wishlist</h1>
       {wishlist.length === 0 ? (
         <div className="text-center py-16 border border-sand">

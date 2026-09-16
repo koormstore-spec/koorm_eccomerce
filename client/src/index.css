@@ -10,6 +10,13 @@
   }
 }
 
+:root {
+  /* One easing vocabulary, so every motion in the app feels related. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -62,6 +69,18 @@ body {
 ::-webkit-scrollbar-track {
   background: #f7f4ef;
 }
+
+/* Scrollable but scrollbar-free — for a strip or panel that should scroll
+   without the browser chrome calling attention to it (the shop's horizontal
+   collection chips, the sticky filter sidebar). Keyboard/wheel/touch
+   scrolling all still work; only the visible track and thumb are removed. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
 ::-webkit-scrollbar-thumb {
   background: #d8cdb8;
   border-radius: 8px;
@@ -111,32 +130,220 @@ body {
 }
 
 .fade-in {
-  animation: fadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: fadeIn 0.4s var(--ease-out);
 }
 
 .fade-in-up {
-  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fadeInUp 0.5s var(--ease-out) both;
+}
+
+.fade-in-soft {
+  animation: fadeIn 0.28s var(--ease-out) both;
+}
+
+/* One transition for the whole screen, applied at the router level. */
+.page-enter {
+  animation: pageEnter 0.42s var(--ease-out) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translate3d(0, 8px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(24px);
+    transform: translate3d(0, 20px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Cards settle in a short cascade. Capped at eight steps so a large grid
+   never leaves the last rows waiting. */
+.product-grid > * {
+  animation: fadeInUp 0.44s var(--ease-out) both;
+}
+.product-grid > *:nth-child(1) { animation-delay: 0ms; }
+.product-grid > *:nth-child(2) { animation-delay: 45ms; }
+.product-grid > *:nth-child(3) { animation-delay: 90ms; }
+.product-grid > *:nth-child(4) { animation-delay: 135ms; }
+.product-grid > *:nth-child(5) { animation-delay: 180ms; }
+.product-grid > *:nth-child(6) { animation-delay: 210ms; }
+.product-grid > *:nth-child(7) { animation-delay: 235ms; }
+.product-grid > *:nth-child(n + 8) { animation-delay: 255ms; }
+
+/* Add-to-bag feedback */
+.fly-ghost {
+  position: fixed;
+  z-index: 200;
+  margin: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  pointer-events: none;
+  will-change: transform, opacity;
+  box-shadow: 0 12px 30px -10px rgb(0 0 0 / 0.35);
+}
+
+.bag-pop {
+  animation: bagPop 0.42s var(--ease-spring);
+}
+
+@keyframes bagPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
+.toast-layer {
+  position: fixed;
+  z-index: 120;
+  right: 0;
+  left: 0;
+  /* Clears the sticky mobile add-to-bag bar on product pages. */
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .toast-layer {
+    left: auto;
+    bottom: auto;
+    top: calc(6rem + env(safe-area-inset-top));
+    justify-content: flex-end;
+    padding: 0 1.25rem;
+  }
+}
+
+.toast-card {
+  @apply relative flex w-full max-w-sm items-start gap-3 rounded-sm border border-sand bg-white p-3 pr-2 text-ink;
+  box-shadow: 0 18px 44px -18px rgb(26 26 26 / 0.35);
+  pointer-events: auto;
+  animation: toastIn 0.36s var(--ease-spring) both;
+  will-change: transform, opacity;
+}
+
+.toast-card-leaving {
+  animation: toastOut 0.26s var(--ease-in) both;
+}
+
+.toast-check {
+  @apply absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-cream;
+  animation: bagPop 0.5s var(--ease-spring) 0.12s both;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes toastOut {
+  to {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.98);
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes toastIn {
+    from {
+      opacity: 0;
+      transform: translate3d(16px, 0, 0) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+  @keyframes toastOut {
+    to {
+      opacity: 0;
+      transform: translate3d(16px, 0, 0) scale(0.98);
+    }
+  }
+}
+
+.coupon-applied {
+  @apply flex items-center gap-3 rounded-sm border border-clay/40 bg-clay/10 p-3;
+  animation: couponIn 0.36s var(--ease-spring) both;
+}
+
+@keyframes couponIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* A row leaving the bag collapses instead of vanishing. */
+.line-item-leaving {
+  animation: lineItemOut 0.32s var(--ease-in) both;
+  pointer-events: none;
+}
+
+@keyframes lineItemOut {
+  to {
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0);
+  }
+}
+
+/* A brief highlight on a field that was just filled in for you (e.g. the
+   pincode → city/state auto-fill on checkout). */
+.field-flash {
+  animation: fieldFlash 1.1s var(--ease-out);
+}
+
+@keyframes fieldFlash {
+  from { background-color: rgba(176, 137, 104, 0.18); }
+  to { background-color: transparent; }
+}
+
+.value-flip {
+  animation: valueFlip 0.36s var(--ease-out);
+}
+
+@keyframes valueFlip {
+  from {
+    opacity: 0.35;
+    transform: translate3d(0, -5px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -271,6 +478,52 @@ body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+}
+
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  height: 100%;
+  height: 100dvh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.modal-panel {
+  position: relative;
+  width: 100%;
+  max-width: 42rem;
+  max-height: min(88dvh, 44rem);
+  overflow-y: auto;
+  background: #fbfaf8;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.35);
+  animation: modalIn 0.32s var(--ease-out) both;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (min-width: 640px) {
+  .modal-layer {
+    align-items: center;
+    padding: 1.5rem;
+  }
+  .modal-panel {
+    border-radius: 12px;
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .drawer-panel {

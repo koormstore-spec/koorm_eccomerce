@@ -156,6 +156,19 @@ CREATE TABLE IF NOT EXISTS reviews (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ---------- STOCK NOTIFICATIONS ----------
+-- "Notify me when it's back in stock" signups for a sold-out product.
+-- One row per (product, email); cleared out once the restock email is sent.
+CREATE TABLE IF NOT EXISTS stock_notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  product_id INT NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  notified_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_stock_notification (product_id, email),
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
 -- =========================================================
 -- SEED DATA
 -- =========================================================

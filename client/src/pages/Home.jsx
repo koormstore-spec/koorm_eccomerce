@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
 import SkeletonGrid from '../components/SkeletonGrid';
+import FirstOrderBanner from '../components/FirstOrderBanner';
 import { TruckIcon, CashIcon, ReturnIcon, ChevronRightIcon } from '../components/Icons';
 
 const EDITS = [
@@ -43,6 +44,8 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <FirstOrderBanner />
 
       <section className="container-x" aria-label="Shopping benefits">
         <div className="shopping-benefits">

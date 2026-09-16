@@ -77,7 +77,32 @@ describe('createOrder', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Linen Shirt has insufficient stock' });
-    expect(connection.beginTransaction).not.toHaveBeenCalled();
+    // The stock check happens inside the transaction (behind a row lock —
+    // see the "locks cart and stock rows" test below), so it must be rolled
+    // back, not skipped.
+    expect(connection.beginTransaction).toHaveBeenCalled();
+    expect(connection.rollback).toHaveBeenCalled();
+    expect(connection.release).toHaveBeenCalled();
+  });
+
+  it('locks cart and stock rows for the duration of the order, so a concurrent checkout cannot oversell the same stock', async () => {
+    const connection = makeConnection();
+    connection.query
+      .mockResolvedValueOnce([[
+        { id: 1, size: 'M', quantity: 1, product_id: 9, name: 'Linen Shirt', images: '[]', price: 1000, stock: 10 },
+      ]])
+      .mockResolvedValueOnce([{ insertId: 61 }])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([{}]);
+    pool.getConnection.mockResolvedValueOnce(connection);
+    const req = { user: { id: 1, name: 'Jane', email: 'jane@example.com' }, body: fullShippingBody() };
+    const res = mockRes();
+
+    await createOrder(req, res);
+
+    const cartLookupCall = connection.query.mock.calls[0];
+    expect(cartLookupCall[0]).toMatch(/FOR UPDATE/i);
   });
 
   it('places the order, commits, and notifies both customer and admin by email', async () => {
@@ -131,7 +156,7 @@ describe('createOrder', () => {
     expect(payload.total_amount).toBe(2500);
   });
 
-  it('rejects an unknown coupon code without touching the transaction', async () => {
+  it('rejects an unknown coupon code and rolls back the transaction', async () => {
     const connection = makeConnection();
     connection.query
       .mockResolvedValueOnce([[
@@ -146,8 +171,39 @@ describe('createOrder', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Invalid coupon code' });
-    expect(connection.beginTransaction).not.toHaveBeenCalled();
+    // The coupon lookup now runs inside the transaction (locked — see the
+    // "redeem its last use only once" test below), so a rejection rolls
+    // back rather than skipping the transaction altogether.
+    expect(connection.beginTransaction).toHaveBeenCalled();
+    expect(connection.rollback).toHaveBeenCalled();
     expect(connection.release).toHaveBeenCalled();
+  });
+
+  it("locks the coupon row so a concurrent order can't redeem its last use twice", async () => {
+    const connection = makeConnection();
+    connection.query
+      .mockResolvedValueOnce([[
+        { id: 1, size: 'M', quantity: 2, product_id: 9, name: 'Linen Shirt', images: '[]', price: 500, stock: 10 },
+      ]]) // cart lookup
+      .mockResolvedValueOnce([[{
+        id: 7, code: 'ONEUSE', discount_type: 'flat', discount_value: 100,
+        min_order_amount: 0, max_discount_amount: null, usage_limit: 1,
+        used_count: 0, expires_at: null, is_active: 1,
+      }]]) // coupon lookup
+      .mockResolvedValueOnce([{ insertId: 62 }])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([{}]);
+    pool.getConnection.mockResolvedValueOnce(connection);
+    const req = { user: { id: 1, name: 'Jane', email: 'jane@example.com' }, body: { ...fullShippingBody(), coupon_code: 'oneuse' } };
+    const res = mockRes();
+
+    await createOrder(req, res);
+
+    const couponLookupCall = connection.query.mock.calls[1];
+    expect(couponLookupCall[0]).toMatch(/FOR UPDATE/i);
+    expect(connection.commit).toHaveBeenCalled();
   });
 
   it('applies a valid coupon, reduces the total, and increments its usage count', async () => {
@@ -182,6 +238,9 @@ describe('createOrder', () => {
     const usageUpdateCall = connection.query.mock.calls[6];
     expect(usageUpdateCall[0]).toContain('used_count = used_count + 1');
     expect(usageUpdateCall[1]).toEqual([7]);
+
+    const couponLookupCall = connection.query.mock.calls[1];
+    expect(couponLookupCall[0]).toMatch(/FOR UPDATE/i);
   });
 
   it('rolls back the transaction if something fails after it has begun', async () => {

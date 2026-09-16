@@ -4,9 +4,8 @@ import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
 import SkeletonGrid from '../components/SkeletonGrid';
 import Drawer from '../components/Drawer';
-import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from '../components/Icons';
+import { ChevronDownIcon, ChevronRightIcon, CloseIcon, StarIcon } from '../components/Icons';
 
-const CATEGORIES = ['men'];
 const SORT_OPTIONS = [
   { value: '', label: 'Recommended' },
   { value: 'newest', label: 'Newest first' },
@@ -21,9 +20,19 @@ const DISCOVERY_LINKS = [
   { label: 'Linen edit', params: { search: 'Linen' } },
   { label: 'Textured shirts', params: { search: 'Textured' } },
 ];
+// Every piece in the collection is cut in these sizes today; kept as a fixed
+// list rather than derived from the current page of results so the filter
+// itself never shifts as you filter.
+const SIZE_OPTIONS = ['S', 'M', 'L', 'XL', 'XXL'];
+const PRICE_PRESETS = [
+  { label: 'Under ₹2,000', min: '', max: '1999' },
+  { label: '₹2,000 – ₹2,500', min: '2000', max: '2500' },
+  { label: 'Above ₹2,500', min: '2501', max: '' },
+];
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -35,6 +44,10 @@ export default function Shop() {
   const sort = searchParams.get('sort') || '';
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
+  const selectedSizes = (searchParams.get('sizes') || '').split(',').filter(Boolean);
+  const onSale = searchParams.get('onSale') === '1';
+  const inStock = searchParams.get('inStock') === '1';
+  const minRating = searchParams.get('minRating') || '';
   const page = Number(searchParams.get('page') || 1);
 
   const updateParams = (updates) => {
@@ -47,7 +60,18 @@ export default function Shop() {
     setSearchParams(next);
   };
 
+  const toggleSize = (size) => {
+    const next = selectedSizes.includes(size) ? selectedSizes.filter((value) => value !== size) : [...selectedSizes, size];
+    updateParams({ sizes: next.join(',') });
+  };
+
+  const toggleFlag = (key, active) => updateParams({ [key]: active ? '' : '1' });
+
   const clearAll = () => setSearchParams({});
+
+  useEffect(() => {
+    api.get('/categories').then(({ data }) => setCategories(data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -57,12 +81,18 @@ export default function Shop() {
     if (sort) params.sort = sort;
     if (minPrice) params.minPrice = minPrice;
     if (maxPrice) params.maxPrice = maxPrice;
+    if (selectedSizes.length > 0) params.sizes = selectedSizes.join(',');
+    if (onSale) params.onSale = '1';
+    if (inStock) params.inStock = '1';
+    if (minRating) params.minRating = minRating;
     api.get('/products', { params })
       .then(({ data }) => { setProducts(data.products); setPages(data.pages); setTotal(data.total); })
       .finally(() => setLoading(false));
-  }, [category, search, sort, minPrice, maxPrice, page]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, search, sort, minPrice, maxPrice, selectedSizes.join(','), onSale, inStock, minRating, page]);
 
-  const hasActiveFilters = category || minPrice || maxPrice || search;
+  const activeFilters = [search, category, minPrice || maxPrice, selectedSizes.length > 0, onSale, inStock, minRating].filter(Boolean);
+  const hasActiveFilters = activeFilters.length > 0;
   const title = search ? `Results for “${search}”` : category ? `${category}’s collection` : sort === 'newest' ? 'New arrivals' : sort === 'rating' ? 'Bestsellers' : 'The shirt collection';
 
   const FilterContent = () => (
@@ -70,24 +100,55 @@ export default function Shop() {
       <div>
         <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Category</h3><span className="text-[12px] text-muted">01</span></div>
         <div className="space-y-1">
-          <button onClick={() => updateParams({ category: '' })} className={`flex w-full items-center justify-between py-2 text-sm transition-colors ${!category ? 'font-semibold text-ink' : 'text-muted hover:text-ink'}`}><span>All pieces</span>{!category && <span className="h-1.5 w-1.5 rounded-full bg-clay" />}</button>
-          {CATEGORIES.map((item) => <button key={item} onClick={() => updateParams({ category: item })} className={`flex w-full items-center justify-between py-2 text-sm capitalize transition-colors ${category === item ? 'font-semibold text-ink' : 'text-muted hover:text-ink'}`}><span>{item}</span>{category === item && <span className="h-1.5 w-1.5 rounded-full bg-clay" />}</button>)}
+          <button onClick={() => updateParams({ category: '' })} aria-pressed={!category} className={`flex w-full items-center justify-between py-2 text-sm transition-colors ${!category ? 'font-semibold text-ink' : 'text-muted hover:text-ink'}`}><span>All pieces</span>{!category && <span className="h-1.5 w-1.5 rounded-full bg-clay" />}</button>
+          {categories.map((item) => <button key={item.slug} onClick={() => updateParams({ category: item.slug })} aria-pressed={category === item.slug} className={`flex w-full items-center justify-between py-2 text-sm capitalize transition-colors ${category === item.slug ? 'font-semibold text-ink' : 'text-muted hover:text-ink'}`}><span>{item.name}</span>{category === item.slug && <span className="h-1.5 w-1.5 rounded-full bg-clay" />}</button>)}
         </div>
       </div>
+
       <div className="border-t border-sand pt-6">
-        <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Price range</h3><span className="text-[12px] text-muted">INR</span></div>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <input type="number" placeholder="Min" defaultValue={minPrice} onBlur={(event) => updateParams({ minPrice: event.target.value })} className="input-field min-w-0 px-3 py-2.5 text-xs" />
-          <span className="text-muted">&ndash;</span>
-          <input type="number" placeholder="Max" defaultValue={maxPrice} onBlur={(event) => updateParams({ maxPrice: event.target.value })} className="input-field min-w-0 px-3 py-2.5 text-xs" />
+        <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Size</h3><span className="text-[12px] text-muted">02</span></div>
+        <div className="flex flex-wrap gap-2">
+          {SIZE_OPTIONS.map((size) => {
+            const active = selectedSizes.includes(size);
+            return <button key={size} type="button" onClick={() => toggleSize(size)} aria-pressed={active} className={`flex h-9 min-w-9 items-center justify-center border px-2.5 text-xs font-semibold transition-colors active:scale-95 ${active ? 'border-ink bg-ink text-cream' : 'border-sand bg-white hover:border-ink'}`}>{size}</button>;
+          })}
         </div>
       </div>
+
+      <div className="border-t border-sand pt-6">
+        <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Price</h3><span className="text-[12px] text-muted">03</span></div>
+        <div className="mb-3 flex flex-wrap gap-2">
+          {PRICE_PRESETS.map((preset) => {
+            const active = minPrice === preset.min && maxPrice === preset.max;
+            return <button key={preset.label} type="button" onClick={() => updateParams({ minPrice: preset.min, maxPrice: preset.max })} aria-pressed={active} className={`filter-pill ${active ? '!border-ink !bg-ink !text-cream' : ''}`}>{preset.label}</button>;
+          })}
+        </div>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <input key={`min-${minPrice}`} type="number" min="0" placeholder="Min" defaultValue={minPrice} onBlur={(event) => updateParams({ minPrice: event.target.value })} className="input-field min-w-0 px-3 py-2.5 text-xs" />
+          <span className="text-muted">&ndash;</span>
+          <input key={`max-${maxPrice}`} type="number" min="0" placeholder="Max" defaultValue={maxPrice} onBlur={(event) => updateParams({ maxPrice: event.target.value })} className="input-field min-w-0 px-3 py-2.5 text-xs" />
+        </div>
+      </div>
+
+      <div className="border-t border-sand pt-6">
+        <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Availability</h3><span className="text-[12px] text-muted">04</span></div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => toggleFlag('onSale', onSale)} aria-pressed={onSale} className={`filter-pill ${onSale ? '!border-ink !bg-ink !text-cream' : ''}`}>On sale</button>
+          <button type="button" onClick={() => toggleFlag('inStock', inStock)} aria-pressed={inStock} className={`filter-pill ${inStock ? '!border-ink !bg-ink !text-cream' : ''}`}>In stock only</button>
+        </div>
+      </div>
+
+      <div className="border-t border-sand pt-6">
+        <div className="mb-3 flex items-center justify-between"><h3 className="text-[12px] font-bold uppercase tracking-[0.15em]">Rating</h3><span className="text-[12px] text-muted">05</span></div>
+        <button type="button" onClick={() => updateParams({ minRating: minRating === '4' ? '' : '4' })} aria-pressed={minRating === '4'} className={`filter-pill !gap-1.5 ${minRating === '4' ? '!border-ink !bg-ink !text-cream' : ''}`}><StarIcon width={12} height={12} filled /> 4 &amp; up</button>
+      </div>
+
       {hasActiveFilters && <button onClick={clearAll} className="text-xs font-medium text-muted link-underline hover:text-ink">Clear all filters</button>}
     </div>
   );
 
   return (
-    <div className="fade-in">
+    <div>
       <section className="border-b border-sand bg-[#eeefe8]">
         <div className="container-x py-8 md:py-12">
           <div className="mb-5 flex items-center gap-1.5 text-[12px] text-muted"><Link to="/" className="hover:text-ink">Home</Link><ChevronRightIcon width={12} height={12} /><span className="text-muted">Shop</span></div>
@@ -106,15 +167,23 @@ export default function Shop() {
           })}
         </div>
 
-        {hasActiveFilters && <div className="mt-5 flex flex-wrap items-center gap-2"><span className="mr-1 text-[12px] font-bold uppercase tracking-[0.14em] text-muted">Filtering by</span>{search && <button onClick={() => updateParams({ search: '' })} className="filter-pill">“{search}” <CloseIcon width={12} height={12} /></button>}{category && <button onClick={() => updateParams({ category: '' })} className="filter-pill capitalize">{category} <CloseIcon width={12} height={12} /></button>}{(minPrice || maxPrice) && <button onClick={() => updateParams({ minPrice: '', maxPrice: '' })} className="filter-pill">&#8377;{minPrice || '0'} &ndash; &#8377;{maxPrice || 'any'} <CloseIcon width={12} height={12} /></button>}<button onClick={clearAll} className="ml-1 text-xs text-muted link-underline hover:text-ink">Clear all</button></div>}
+        {hasActiveFilters && <div className="mt-5 flex flex-wrap items-center gap-2 fade-in-soft"><span className="mr-1 text-[12px] font-bold uppercase tracking-[0.14em] text-muted">Filtering by</span>{search && <button onClick={() => updateParams({ search: '' })} className="filter-pill">“{search}” <CloseIcon width={12} height={12} /></button>}{category && <button onClick={() => updateParams({ category: '' })} className="filter-pill capitalize">{category} <CloseIcon width={12} height={12} /></button>}{selectedSizes.map((size) => <button key={size} onClick={() => toggleSize(size)} className="filter-pill">Size {size} <CloseIcon width={12} height={12} /></button>)}{(minPrice || maxPrice) && <button onClick={() => updateParams({ minPrice: '', maxPrice: '' })} className="filter-pill">&#8377;{minPrice || '0'} &ndash; &#8377;{maxPrice || 'any'} <CloseIcon width={12} height={12} /></button>}{onSale && <button onClick={() => toggleFlag('onSale', true)} className="filter-pill">On sale <CloseIcon width={12} height={12} /></button>}{inStock && <button onClick={() => toggleFlag('inStock', true)} className="filter-pill">In stock only <CloseIcon width={12} height={12} /></button>}{minRating && <button onClick={() => updateParams({ minRating: '' })} className="filter-pill">{minRating}★ &amp; up <CloseIcon width={12} height={12} /></button>}<button onClick={clearAll} className="ml-1 text-xs text-muted link-underline hover:text-ink">Clear all</button></div>}
 
         <div className="mt-7 flex gap-8 xl:gap-10">
           <aside className="hidden w-56 shrink-0 xl:block">
-            <div className="sticky top-32 border-t border-ink pt-4"><div className="mb-6 flex items-center justify-between"><h2 className="text-[12px] font-bold uppercase tracking-[0.18em]">Filters</h2>{hasActiveFilters && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay text-[12px] text-white">!</span>}</div><FilterContent /></div>
+            {/* Sticks at top-32; once its own content runs taller than the
+                space left below that (the common case now that Filters has
+                five sections), it scrolls internally instead of running off
+                the bottom of the viewport. scrollbar-none keeps that scroll
+                available without a visible track crowding a 14rem column. */}
+            <div className="scrollbar-none sticky top-32 max-h-[calc(100dvh-9rem)] overflow-y-auto overscroll-contain border-t border-ink pt-4 pb-8">
+              <div className="mb-6 flex items-center justify-between"><h2 className="text-[12px] font-bold uppercase tracking-[0.18em]">Filters</h2>{hasActiveFilters && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay text-[11px] font-semibold text-white">{activeFilters.length}</span>}</div>
+              <FilterContent />
+            </div>
           </aside>
           <div className="min-w-0 flex-1">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-y border-sand py-3">
-              <button className="btn-outline px-4 py-2 text-[12px] xl:hidden" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen} aria-controls="shop-filters">Filters {hasActiveFilters && <span className="ml-1 text-accent">&bull;</span>}</button>
+              <button className="btn-outline px-4 py-2 text-[12px] xl:hidden" onClick={() => setFiltersOpen(true)} aria-expanded={filtersOpen} aria-controls="shop-filters">Filters {hasActiveFilters && <span className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-clay px-1 text-[10px] font-bold text-white">{activeFilters.length}</span>}</button>
               <p className="hidden text-xs text-muted xl:block">Showing a thoughtful selection of {total} pieces</p>
               <div className="relative ml-auto max-w-full"><select value={sort} onChange={(event) => updateParams({ sort: event.target.value })} className="h-11 max-w-full appearance-none rounded-sm border border-sand bg-white py-2 pl-4 pr-9 text-xs outline-none transition-colors hover:border-ink"><option value="">Sort: Recommended</option>{SORT_OPTIONS.filter((option) => option.value).map((option) => <option key={option.value} value={option.value}>Sort: {option.label}</option>)}</select><ChevronDownIcon width={14} height={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted" /></div>
             </div>
