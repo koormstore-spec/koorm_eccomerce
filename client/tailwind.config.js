@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: '#28352c',
-        muted: '#6b7069',
-        accent: '#52654b',
-        cream: '#faf9f6',
-        sand: '#e4e5dd',
+        ink: '#20272b',
+        muted: '#737373',
+        accent: '#244956',
+        cream: '#ffffff',
+        sand: '#e5e5e5',
         clay: '#b08968',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        serif: ['"Playfair Display"', 'serif'],
+        serif: ['Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         xs: ['0.8125rem', { lineHeight: '1.25rem' }],

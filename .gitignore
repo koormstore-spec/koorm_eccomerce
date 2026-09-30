@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+server/backups/
 
 # Environment variables (contain real secrets — never commit)
 .env

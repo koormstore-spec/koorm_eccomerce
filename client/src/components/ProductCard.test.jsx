@@ -33,6 +33,12 @@ const renderCard = (product, { user = null, toggleWishlist = vi.fn(), addToCart 
 };
 
 describe('ProductCard', () => {
+  it('shows unavailable stock and prevents quick add for zero inventory', () => {
+    renderCard({ ...baseProduct, stock: 0 });
+    expect(screen.getByText('Currently unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('Quick add')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: `View ${baseProduct.name}` })).toBeInTheDocument();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

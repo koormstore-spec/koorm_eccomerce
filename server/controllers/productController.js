@@ -29,6 +29,10 @@ const getProducts = async (req, res) => {
       maxPrice,
       sort,
       featured,
+      sale,
+      inStock,
+      size,
+      color,
       page = 1,
       limit = 20,
     } = req.query;
@@ -59,6 +63,16 @@ const getProducts = async (req, res) => {
     if (featured) {
       where.push('p.is_featured = 1');
     }
+    if (sale === 'true') where.push('p.discount_price > 0 AND p.discount_price < p.price');
+    if (inStock === 'true') where.push('p.stock > 0');
+    if (size) {
+      where.push('JSON_CONTAINS(p.sizes, ?)');
+      params.push(JSON.stringify(String(size)));
+    }
+    if (color) {
+      where.push('LOWER(p.colors) LIKE ?');
+      params.push(`%${String(color).toLowerCase()}%`);
+    }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -77,7 +91,7 @@ const getProducts = async (req, res) => {
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        ${whereClause}
-       ORDER BY ${orderBy}
+       ORDER BY ${orderBy}, p.id DESC
        LIMIT ? OFFSET ?`,
       [...params, limitNum, offset]
     );
@@ -201,6 +215,21 @@ const updateProduct = async (req, res) => {
   }
 };
 
+const updateProductStock = async (req, res) => {
+  const { stock } = req.body;
+  if (typeof stock !== 'number' || !Number.isInteger(stock) || stock < 0 || stock > 2147483647) {
+    return res.status(400).json({ message: 'Stock must be a whole number between 0 and 2147483647.' });
+  }
+  try {
+    await pool.query('UPDATE products SET stock = ? WHERE id = ?', [stock, req.params.id]);
+    const [rows] = await pool.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    res.json(parseProduct(rows[0]));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 const deleteProduct = async (req, res) => {
   try {
     await pool.query('DELETE FROM products WHERE id = ?', [req.params.id]);
@@ -215,5 +244,6 @@ module.exports = {
   getProductBySlug,
   createProduct,
   updateProduct,
+  updateProductStock,
   deleteProduct,
 };

@@ -30,7 +30,7 @@ function App() {
   const { pathname } = useLocation();
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
   return (
-    <div className={`flex flex-col min-h-screen ${pathname.startsWith('/product/') ? 'pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
+    <div className={`${isAdmin ? '' : 'storefront'} flex flex-col min-h-screen ${pathname.startsWith('/product/') ? 'product-detail-page pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
       {!isAdmin && <Navbar />}
       <main className="min-w-0 flex-1">
         <Routes>

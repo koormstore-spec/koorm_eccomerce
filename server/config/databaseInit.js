@@ -55,6 +55,11 @@ const initializeDatabase = async () => {
     );
     await connection.query(`USE ${quotedDatabaseName}`);
     await connection.query(schemaDefinitions());
+    // Keep existing reviews while allowing each submission to create its own card.
+    const [reviewIndexes] = await connection.query('SHOW INDEX FROM store_reviews');
+    if (reviewIndexes.some(index => index.Key_name === 'user_id' && Number(index.Non_unique) === 0)) {
+      await connection.query('ALTER TABLE store_reviews ADD INDEX store_review_user (user_id), DROP INDEX user_id');
+    }
     await connection.query(readSql('admin_schema.sql').replace(/^.*?USE koorm_db;\s*/s, ''));
 
     await addColumnIfMissing(connection, 'users', 'is_verified', 'TINYINT(1) NOT NULL DEFAULT 0');
