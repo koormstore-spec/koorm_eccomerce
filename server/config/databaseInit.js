@@ -55,6 +55,9 @@ const initializeDatabase = async () => {
     );
     await connection.query(`USE ${quotedDatabaseName}`);
     await connection.query(schemaDefinitions());
+    await connection.query(`INSERT IGNORE INTO coupons
+      (code, discount_type, discount_value, min_order_amount, is_active)
+      VALUES ('FIRST30', 'percent', 30, 0, 1)`);
     // Keep existing reviews while allowing each submission to create its own card.
     const [reviewIndexes] = await connection.query('SHOW INDEX FROM store_reviews');
     if (reviewIndexes.some(index => index.Key_name === 'user_id' && Number(index.Non_unique) === 0)) {

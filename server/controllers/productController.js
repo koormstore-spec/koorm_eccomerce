@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { orderModel } = require('../models');
 
 const parseProduct = (row) => {
   if (!row) return row;
@@ -126,7 +127,7 @@ const getProductBySlug = async (req, res) => {
     }
 
     const [reviews] = await pool.query(
-      `SELECT r.id, r.rating, r.comment, r.created_at, u.name AS user_name
+      `SELECT r.id, r.rating, r.comment, r.admin_reply, r.admin_reply_at, r.created_at, u.name AS user_name
        FROM reviews r JOIN users u ON r.user_id = u.id
        WHERE r.product_id = ? ORDER BY r.created_at DESC`,
       [rows[0].id]
@@ -137,10 +138,15 @@ const getProductBySlug = async (req, res) => {
       [rows[0].category_id, rows[0].id]
     );
 
+    // Only a signed-in visitor can be told whether they're eligible to
+    // review — everyone else just doesn't see the review form at all.
+    const canReview = req.user ? await orderModel.hasPurchasedProduct(req.user.id, rows[0].id) : false;
+
     res.json({
       ...parseProduct(rows[0]),
       reviews,
       related: related.map(parseProduct),
+      can_review: canReview,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

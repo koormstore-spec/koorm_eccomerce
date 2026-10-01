@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protectAdmin } = require('../middleware/auth');
+const { protectAdmin, attachUser } = require('../middleware/auth');
 const {
   getProducts,
   getProductBySlug,
@@ -11,7 +11,7 @@ const {
 } = require('../controllers/productController');
 
 router.get('/', getProducts);
-router.get('/:slug', getProductBySlug);
+router.get('/:slug', attachUser, getProductBySlug);
 router.post('/', protectAdmin, createProduct);
 router.put('/:id', protectAdmin, updateProduct);
 router.patch('/:id/stock', protectAdmin, updateProductStock);

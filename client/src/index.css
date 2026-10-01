@@ -28,6 +28,8 @@ body {
   animation: announcement-scroll 45s linear infinite;
 }
 
+.announcement-bar { background: #1c2c39; color: #fff; }
+
 .announcement-copy {
   display: flex;
   flex-shrink: 0;
@@ -36,17 +38,19 @@ body {
   white-space: nowrap;
   font-size: 13px;
   letter-spacing: 0.04em;
+  min-width: 100vw;
+  justify-content: space-around;
 }
 
 @keyframes announcement-scroll {
-  to { transform: translateX(-50%); }
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .announcement-track { animation: none; width: auto; }
-  .announcement-copy { white-space: normal; }
-  .announcement-copy > span { padding-block: 8px; }
-  .announcement-copy > span > :not(strong),
+  .announcement-copy { white-space: normal; min-width: 0; }
+  .announcement-copy > span { padding-block: 8px; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
   .announcement-copy > span:nth-child(2),
   .announcement-copy:nth-child(2),
   .announcement-control { display: none; }
@@ -264,7 +268,8 @@ body {
   .edit-card:hover .edit-image img { transform: scale(1.025); }
   .product-card:hover .product-card-image-alt { opacity: 1; }
   .product-quick-view:hover ~ .product-quick-add,
-  .product-quick-add:hover { visibility: visible; pointer-events: auto; opacity: 1; }
+  .product-quick-add:hover,
+  .product-card:hover .product-quick-add { visibility: visible; pointer-events: auto; opacity: 1; }
 }
 
 .drawer-layer {

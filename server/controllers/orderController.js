@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
 const { sendOrderConfirmationToCustomer, sendOrderNotificationToAdmin, sendOrderCancellationToAdmin, sendOrderStatusUpdateToCustomer } = require('../utils/email');
 const { evaluateCoupon } = require('./couponController');
+const { firstOrderError } = require('../utils/firstOrderOffer');
 
 const parseImages = (images) => {
   if (!images) return [];
@@ -45,9 +46,13 @@ const createOrder = async (req, res) => {
     }
 
     for (const item of cartRows) {
+      if (item.stock <= 0) {
+        connection.release();
+        return res.status(400).json({ message: `${item.name} is out of stock` });
+      }
       if (item.stock < item.quantity) {
         connection.release();
-        return res.status(400).json({ message: `${item.name} has insufficient stock` });
+        return res.status(400).json({ message: `Only ${item.stock} left in stock for ${item.name}` });
       }
     }
 
@@ -79,6 +84,16 @@ const createOrder = async (req, res) => {
     const orderNumber = generateOrderNumber();
 
     await connection.beginTransaction();
+
+    // Serialize orders for each customer, then check first-order eligibility
+    // using a current read so concurrent checkouts cannot reuse FIRST30.
+    await connection.query('SELECT id FROM users WHERE id = ? FOR UPDATE', [req.user.id]);
+    const eligibilityError = await firstOrderError(connection, req.user.id, appliedCoupon?.code, true);
+    if (eligibilityError) {
+      await connection.rollback();
+      connection.release();
+      return res.status(400).json({ message: eligibilityError });
+    }
 
     const [orderResult] = await connection.query(
       `INSERT INTO orders

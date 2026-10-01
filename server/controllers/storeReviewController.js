@@ -1,7 +1,9 @@
 const { pool } = require('../config/db');
 
-const selectReviews = `SELECT r.id, r.rating, r.comment, r.created_at,
+const selectReviews = `SELECT r.id, r.rating, r.comment, r.admin_reply, r.admin_reply_at, r.created_at,
   u.name AS user_name FROM store_reviews r JOIN users u ON u.id = r.user_id`;
+
+const MAX_REPLY_LENGTH = 1000;
 const publicReview = review => {
   const names = String(review.user_name || 'Customer').trim().split(/\s+/);
   return { ...review, user_name: names[0] + (names.length > 1 ? ` ${names[names.length - 1][0]}.` : '') };
@@ -39,4 +41,51 @@ const addStoreReview = async (req, res) => {
   }
 };
 
-module.exports = { getStoreReviews, addStoreReview };
+// Admin-only moderation: no customer-facing route ever calls this — a
+// customer cannot delete even their own store review, let alone someone
+// else's.
+const deleteStoreReview = async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM store_reviews WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    res.json({ message: 'Review deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Admin moderation: posts (or clears) a public reply under a customer's
+// store review — visible to every homepage visitor. No customer-facing
+// route can ever call this.
+const adminReplyToStoreReview = async (req, res) => {
+  try {
+    const { reply } = req.body;
+    if (typeof reply !== 'string') {
+      return res.status(400).json({ message: 'Reply must be text.' });
+    }
+    const trimmed = reply.trim();
+    if (trimmed.length > MAX_REPLY_LENGTH) {
+      return res.status(400).json({ message: `Reply must be no more than ${MAX_REPLY_LENGTH} characters.` });
+    }
+
+    const [existing] = await pool.query('SELECT id FROM store_reviews WHERE id = ?', [req.params.id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    await pool.query('UPDATE store_reviews SET admin_reply = ?, admin_reply_at = ? WHERE id = ?', [
+      trimmed || null,
+      trimmed ? new Date() : null,
+      req.params.id,
+    ]);
+
+    const [[review]] = await pool.query(`${selectReviews} WHERE r.id = ?`, [req.params.id]);
+    res.json({ message: trimmed ? 'Reply posted' : 'Reply removed', review: publicReview(review) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getStoreReviews, addStoreReview, deleteStoreReview, adminReplyToStoreReview };

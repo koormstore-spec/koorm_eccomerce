@@ -38,7 +38,7 @@ it('saves a review and displays the server response immediately', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Submit review' }));
   expect(await screen.findByText(review.comment)).toBeInTheDocument();
   expect(api.post).toHaveBeenCalledWith('/reviews/store', { rating: 4, comment: review.comment });
-  expect(screen.getByText('Thank you! Your review is now displayed below.')).toBeInTheDocument();
+  expect(screen.getByText('Thank you! Your review is now displayed above.')).toBeInTheDocument();
   expect(screen.getByLabelText('Your review')).toHaveValue('');
 });
 
@@ -49,7 +49,7 @@ it('preserves text and reports failure so the customer can retry', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Submit review' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not save your review');
   expect(screen.getByLabelText('Your review')).toHaveValue(review.comment);
-  expect(screen.queryByText('Thank you! Your review is now displayed below.')).not.toBeInTheDocument();
+  expect(screen.queryByText('Thank you! Your review is now displayed above.')).not.toBeInTheDocument();
 });
 
 it('adds a new card for each submission and keeps earlier comments from the same customer', async () => {

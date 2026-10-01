@@ -50,9 +50,9 @@ describe('ProductCard', () => {
     expect(screen.getByText('₹2,499')).toBeInTheDocument();
   });
 
-  it('shows a sale badge with the correct percentage when discounted', () => {
+  it('keeps sale prices without a percentage badge', () => {
     renderCard({ ...baseProduct, price: 2000, discount_price: 1500 });
-    expect(screen.getByText('-25%')).toBeInTheDocument();
+    expect(screen.queryByText('-25%')).not.toBeInTheDocument();
     expect(screen.getByText('₹1,500')).toBeInTheDocument();
     expect(screen.getByText('₹2,000')).toBeInTheDocument(); // struck-through original price
   });
@@ -68,11 +68,11 @@ describe('ProductCard', () => {
     expect(screen.getByText('New')).toBeInTheDocument();
   });
 
-  it('prefers the sale badge over the New badge when both would apply', () => {
+  it('shows New on recent products without a sale percentage badge', () => {
     const recent = new Date().toISOString();
     renderCard({ ...baseProduct, created_at: recent, price: 2000, discount_price: 1500 });
-    expect(screen.getByText('-25%')).toBeInTheDocument();
-    expect(screen.queryByText('New')).not.toBeInTheDocument();
+    expect(screen.queryByText('-25%')).not.toBeInTheDocument();
+    expect(screen.getByText('New')).toBeInTheDocument();
   });
 
   it('does not render a wishlist button for a logged-out visitor', () => {
@@ -93,6 +93,13 @@ describe('ProductCard', () => {
   it('does not render the quick-add size overlay when the product has no sizes', () => {
     renderCard({ ...baseProduct, sizes: [] }, { user: { id: 1, name: 'Jane' } });
     expect(screen.queryByText('S')).not.toBeInTheDocument();
+  });
+
+  it('shows the server\'s specific stock message when a quick add fails', async () => {
+    const addToCart = vi.fn().mockRejectedValue({ response: { data: { message: 'Only 1 left in stock for Linen Shirt - Rust Red' } } });
+    renderCard(baseProduct, { user: { id: 1, name: 'Jane' }, addToCart });
+    fireEvent.click(screen.getByText('S'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Only 1 left in stock for Linen Shirt - Rust Red');
   });
 
   it('links to the product detail page by slug', () => {

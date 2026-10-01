@@ -66,7 +66,7 @@ export default function OrderDetail() {
                 {item.product_image && <img src={item.product_image} alt="" className="h-full w-full object-cover" />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm">{item.product_name}</p>
+                <p className="product-name font-medium text-sm">{item.product_name}</p>
                 <p className="text-xs text-muted">Size: {item.size} · Qty: {item.quantity}</p>
               </div>
               <p className="col-start-2 font-medium text-sm">₹{(item.price * item.quantity).toLocaleString('en-IN')}</p>

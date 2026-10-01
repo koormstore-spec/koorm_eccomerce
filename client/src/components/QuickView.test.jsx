@@ -20,9 +20,10 @@ const show = (overrides = {}) => render(<MemoryRouter><QuickView product={{ ...p
 it('requires a size, then adds the selected product and reports success', async () => {
   show();
   fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
-  expect(screen.getByRole('status')).toHaveTextContent('Please select a size');
+  expect(screen.getByRole('alert')).toHaveTextContent('Please select a size');
   expect(addToCart).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'M', exact: true }));
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
   expect(addToCart).toHaveBeenCalledWith(7, 'M', 1);
   expect(await screen.findByText('Added to your bag.')).toBeInTheDocument();
@@ -49,4 +50,11 @@ it('reports a failed cart request and permits retry', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
   expect(await screen.findByText('Could not add this item. Please try again.')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Add to cart' })).toBeEnabled();
+});
+it('shows the server\'s specific stock message instead of a generic error', async () => {
+  addToCart.mockRejectedValueOnce({ response: { data: { message: 'Only 1 left in stock for Linen shirt' } } });
+  show();
+  fireEvent.click(screen.getByRole('button', { name: 'S', exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+  expect(await screen.findByText('Only 1 left in stock for Linen shirt')).toBeInTheDocument();
 });

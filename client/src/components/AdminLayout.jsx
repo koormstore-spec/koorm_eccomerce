@@ -10,6 +10,7 @@ const LINKS = [
   { to: '/admin/products', label: 'Products', icon: 'products' },
   { to: '/admin/orders', label: 'Orders', icon: 'orders' },
   { to: '/admin/coupons', label: 'Coupons', icon: 'coupon' },
+  { to: '/admin/reviews', label: 'Reviews', icon: 'review' },
 ];
 
 export default function AdminLayout({ children, title = 'Store overview', description, actions }) {
@@ -17,7 +18,7 @@ export default function AdminLayout({ children, title = 'Store overview', descri
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const section = pathname.includes('/products') ? 'Products' : pathname.includes('/orders') ? 'Orders' : pathname.includes('/coupons') ? 'Coupons' : 'Overview';
+  const section = pathname.includes('/products') ? 'Products' : pathname.includes('/orders') ? 'Orders' : pathname.includes('/coupons') ? 'Coupons' : pathname.includes('/reviews') ? 'Reviews' : 'Overview';
   const logout = () => { adminLogout(); navigate('/admin/login'); };
   const navigation = <div className="admin-sidebar">
     <Link to="/admin" className="admin-brand"><span className="font-serif text-3xl font-semibold tracking-[-0.06em]">KOORM</span><span className="mt-1 rounded border border-cream/25 px-1.5 py-0.5 text-[9px] tracking-widest">ADMIN</span></Link>

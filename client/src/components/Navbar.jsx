@@ -4,6 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import BrandMark from './BrandMark';
+import AnnouncementBar from './AnnouncementBar';
 import Drawer from './Drawer';
 import { SearchIcon, HeartIcon, BagIcon, UserIcon, MenuIcon, CloseIcon, ChevronRightIcon } from './Icons';
 
@@ -43,6 +44,7 @@ export default function Navbar() {
   };
 
   return <header ref={headerRef} className="store-header">
+    <AnnouncementBar />
     <div className="store-nav container-x">
       <button className="btn-icon lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-expanded={menuOpen} aria-controls="mobile-navigation"><MenuIcon /></button>
       <nav className="desktop-navigation" aria-label="Main navigation">{NAV_LINKS.map(link => <Link key={link.label} to={link.to} aria-current={activeLink === link.label ? 'page' : undefined} className={`store-nav-link ${link.label === 'Sale' ? 'sale-link' : ''}`}>{link.label}</Link>)}</nav>

@@ -6,7 +6,7 @@ jest.mock('../config/db', () => ({
 }));
 
 const { pool, adminPool } = require('../config/db');
-const { protect, protectAdmin } = require('../middleware/auth');
+const { protect, attachUser, protectAdmin } = require('../middleware/auth');
 
 const mockRes = () => {
   const res = {};
@@ -78,6 +78,59 @@ describe('protect (customer auth)', () => {
     expect(req.user).toEqual(user);
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();
+  });
+});
+
+describe('attachUser (optional auth — never rejects the request)', () => {
+  it('calls next() with no req.user when there is no Authorization header', async () => {
+    const req = { headers: {} };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await attachUser(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('calls next() with no req.user for an invalid token, instead of rejecting', async () => {
+    const req = { headers: { authorization: 'Bearer not-a-real-token' } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await attachUser(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('calls next() with no req.user when the token is valid but the user no longer exists', async () => {
+    pool.query.mockResolvedValueOnce([[]]);
+    const token = jwt.sign({ id: 99 }, process.env.JWT_SECRET);
+    const req = { headers: { authorization: `Bearer ${token}` } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await attachUser(req, res, next);
+
+    expect(req.user).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('attaches req.user and calls next() for a valid token', async () => {
+    const user = { id: 5, name: 'Jane', email: 'jane@example.com', phone: '9990001111' };
+    pool.query.mockResolvedValueOnce([[user]]);
+    const token = jwt.sign({ id: 5 }, process.env.JWT_SECRET);
+    const req = { headers: { authorization: `Bearer ${token}` } };
+    const res = mockRes();
+    const next = jest.fn();
+
+    await attachUser(req, res, next);
+
+    expect(req.user).toEqual(user);
+    expect(next).toHaveBeenCalledTimes(1);
   });
 });
 

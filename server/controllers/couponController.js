@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { couponModel } = require('../models');
+const { firstOrderError } = require('../utils/firstOrderOffer');
 
 // Shared by validateCoupon (checkout preview) and createOrder (final,
 // authoritative check) so the two can never disagree about whether a coupon
@@ -60,6 +61,9 @@ const validateCoupon = async (req, res) => {
     if (result.error) {
       return res.status(400).json({ message: result.error });
     }
+
+    const eligibilityError = await firstOrderError(pool, req.user.id, coupons[0].code);
+    if (eligibilityError) return res.status(400).json({ message: eligibilityError });
 
     res.json({
       code: coupons[0].code,

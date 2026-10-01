@@ -1,6 +1,6 @@
 ﻿jest.mock('../config/db', () => ({ pool: { query: jest.fn() } }));
 const { pool } = require('../config/db');
-const { getProducts, updateProductStock } = require('../controllers/productController');
+const { getProducts, updateProductStock, getProductBySlug } = require('../controllers/productController');
 
 beforeEach(() => jest.resetAllMocks());
 const response = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
@@ -44,6 +44,32 @@ test('combines catalogue filters and applies the same conditions to pagination t
   expect(listParams).toEqual([100, 3000, '"M"', '%blue%', 12, 12]);
   expect(countParams).toEqual(listParams.slice(0, -2));
   expect(res.json).toHaveBeenCalledWith({ products: [], total: 0, page: 2, pages: 0 });
+});
+
+const productRow = { id: 2, slug: 'linen-shirt', name: 'Linen Shirt', price: 2499, category_id: 1, sizes: '["M"]', colors: '["White"]', images: '["/photo.jpg"]' };
+
+test('marks can_review false for an anonymous visitor without checking purchase history', async () => {
+  pool.query.mockResolvedValueOnce([[productRow]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]]);
+  const res = response();
+  await getProductBySlug({ params: { slug: 'linen-shirt' } }, res);
+  expect(pool.query).toHaveBeenCalledTimes(3);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ can_review: false }));
+});
+
+test('marks can_review true for a signed-in customer who ordered this product', async () => {
+  pool.query.mockResolvedValueOnce([[productRow]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]])
+    .mockResolvedValueOnce([[{ id: 9 }]]); // hasPurchasedProduct -> ordered
+  const res = response();
+  await getProductBySlug({ params: { slug: 'linen-shirt' }, user: { id: 3 } }, res);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ can_review: true }));
+});
+
+test('marks can_review false for a signed-in customer who never ordered this product', async () => {
+  pool.query.mockResolvedValueOnce([[productRow]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([[]])
+    .mockResolvedValueOnce([[]]); // hasPurchasedProduct -> not ordered
+  const res = response();
+  await getProductBySlug({ params: { slug: 'linen-shirt' }, user: { id: 3 } }, res);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ can_review: false }));
 });
 
 test('false flags do not hide stock or full-price products and values stay parameterized', async () => {

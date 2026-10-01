@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -25,10 +26,27 @@ import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminCoupons from './pages/admin/AdminCoupons';
 import AdminCouponForm from './pages/admin/AdminCouponForm';
+import AdminReviews from './pages/admin/AdminReviews';
 
 function App() {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
+
+  // React Router never scrolls on navigation by itself, so a link clicked
+  // from the bottom of a long page (the footer, most often) would otherwise
+  // land on the new page still scrolled to that same position. Jump to the
+  // linked anchor when there is one (e.g. the footer's #returns link),
+  // otherwise to the top of the new page.
+  useEffect(() => {
+    if (hash) {
+      const target = document.getElementById(hash.slice(1));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+    window.scrollTo(0, 0);
+  }, [pathname, hash]);
   return (
     <div className={`${isAdmin ? '' : 'storefront'} flex flex-col min-h-screen ${pathname.startsWith('/product/') ? 'product-detail-page pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0' : ''}`}>
       {!isAdmin && <Navbar />}
@@ -61,6 +79,7 @@ function App() {
             <Route path="/admin/coupons" element={<AdminCoupons />} />
             <Route path="/admin/coupons/new" element={<AdminCouponForm />} />
             <Route path="/admin/coupons/:id/edit" element={<AdminCouponForm />} />
+            <Route path="/admin/reviews" element={<AdminReviews />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

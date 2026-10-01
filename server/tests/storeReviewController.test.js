@@ -1,6 +1,6 @@
 jest.mock('../config/db', () => ({ pool: { query: jest.fn() } }));
 const { pool } = require('../config/db');
-const { getStoreReviews, addStoreReview } = require('../controllers/storeReviewController');
+const { getStoreReviews, addStoreReview, deleteStoreReview, adminReplyToStoreReview } = require('../controllers/storeReviewController');
 const response = () => ({ json: jest.fn(), status: jest.fn().mockReturnThis() });
 const review = { id: 1, rating: 5, comment: 'Great experience', user_name: 'Test Customer' };
 beforeEach(() => jest.resetAllMocks());
@@ -35,4 +35,65 @@ test('reports a save failure without claiming success', async () => {
   const res = response();
   await addStoreReview({ body: { rating: 5, comment: 'Great experience' }, user: { id: 3 } }, res);
   expect(res.status).toHaveBeenCalledWith(500);
+});
+
+describe('deleteStoreReview (admin-only — no customer route ever calls this)', () => {
+  test('deletes the review by id, with no author restriction', async () => {
+    pool.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+    const res = response();
+    await deleteStoreReview({ params: { id: 1 } }, res); // no req.user — admins aren't review authors
+    expect(pool.query).toHaveBeenCalledWith('DELETE FROM store_reviews WHERE id = ?', [1]);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Review deleted' });
+  });
+
+  test('reports a review that no longer exists', async () => {
+    pool.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+    const res = response();
+    await deleteStoreReview({ params: { id: 999 } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+});
+
+describe('adminReplyToStoreReview (admin moderation — a public reply, visible to everyone)', () => {
+  test('rejects a non-string reply', async () => {
+    const res = response();
+    await adminReplyToStoreReview({ params: { id: 1 }, body: { reply: null } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('rejects a reply longer than 1,000 characters', async () => {
+    const res = response();
+    await adminReplyToStoreReview({ params: { id: 1 }, body: { reply: 'a'.repeat(1001) } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('reports a review that does not exist', async () => {
+    pool.query.mockResolvedValueOnce([[]]);
+    const res = response();
+    await adminReplyToStoreReview({ params: { id: 999 }, body: { reply: 'Thank you!' } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  test('posts a trimmed reply and returns the updated review with it included', async () => {
+    pool.query.mockResolvedValueOnce([[{ id: 1 }]]) // existence check
+      .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
+      .mockResolvedValueOnce([[{ ...review, admin_reply: 'Thank you!' }]]); // re-select
+    const res = response();
+    await adminReplyToStoreReview({ params: { id: 1 }, body: { reply: '  Thank you!  ' } }, res);
+    expect(pool.query.mock.calls[1][1][0]).toBe('Thank you!');
+    expect(pool.query.mock.calls[1][1][2]).toBe(1);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Reply posted', review: expect.objectContaining({ admin_reply: 'Thank you!' }) });
+  });
+
+  test('clears an existing reply when sent an empty string', async () => {
+    pool.query.mockResolvedValueOnce([[{ id: 1 }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[{ ...review, admin_reply: null }]]);
+    const res = response();
+    await adminReplyToStoreReview({ params: { id: 1 }, body: { reply: '' } }, res);
+    expect(pool.query.mock.calls[1][1]).toEqual([null, null, 1]);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Reply removed', review: expect.objectContaining({ admin_reply: null }) });
+  });
 });

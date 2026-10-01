@@ -1,8 +1,11 @@
 const { pool } = require('../config/db');
+const { orderModel } = require('../models');
 
-const reviewSelect = `SELECT r.id, r.product_id, r.rating, r.comment, r.created_at,
+const reviewSelect = `SELECT r.id, r.product_id, r.rating, r.comment, r.admin_reply, r.admin_reply_at, r.created_at,
   u.name AS user_name, p.name AS product_name, p.slug AS product_slug, p.images
   FROM reviews r JOIN users u ON u.id = r.user_id JOIN products p ON p.id = r.product_id`;
+
+const MAX_REPLY_LENGTH = 1000;
 
 const publicReview = ({ images, user_name, ...review }) => {
   let photos = images;
@@ -39,6 +42,11 @@ const addReview = async (req, res) => {
   }
   let connection;
   try {
+    const purchased = await orderModel.hasPurchasedProduct(req.user.id, product_id);
+    if (!purchased) {
+      return res.status(403).json({ message: 'You can only review products you have ordered.' });
+    }
+
     connection = await pool.getConnection();
     await connection.beginTransaction();
     // Serialize rating changes for this product so the aggregate stays accurate.
@@ -73,6 +81,18 @@ const addReview = async (req, res) => {
   }
 };
 
+const recomputeProductRating = async (productId) => {
+  const [agg] = await pool.query(
+    'SELECT AVG(rating) AS avgRating, COUNT(*) AS count FROM reviews WHERE product_id = ?',
+    [productId]
+  );
+  await pool.query('UPDATE products SET rating = ?, num_reviews = ? WHERE id = ?', [
+    agg[0].avgRating ? Number(agg[0].avgRating).toFixed(1) : 0,
+    agg[0].count,
+    productId,
+  ]);
+};
+
 const deleteReview = async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM reviews WHERE id = ? AND user_id = ?', [
@@ -82,23 +102,62 @@ const deleteReview = async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Review not found' });
     }
-    const productId = rows[0].product_id;
     await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
-
-    const [agg] = await pool.query(
-      'SELECT AVG(rating) AS avgRating, COUNT(*) AS count FROM reviews WHERE product_id = ?',
-      [productId]
-    );
-    await pool.query('UPDATE products SET rating = ?, num_reviews = ? WHERE id = ?', [
-      agg[0].avgRating ? Number(agg[0].avgRating).toFixed(1) : 0,
-      agg[0].count,
-      productId,
-    ]);
-
+    await recomputeProductRating(rows[0].product_id);
     res.json({ message: 'Review deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = { getReviews, addReview, deleteReview };
+// Admin moderation: unlike deleteReview, this isn't scoped to the review's
+// author — an admin can remove any customer's review (e.g. abusive or
+// inappropriate content), which a regular customer can never do to someone
+// else's review.
+const adminDeleteReview = async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM reviews WHERE id = ?', [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+    await pool.query('DELETE FROM reviews WHERE id = ?', [req.params.id]);
+    await recomputeProductRating(rows[0].product_id);
+    res.json({ message: 'Review deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Admin moderation: posts (or clears, with an empty/whitespace-only string)
+// a public reply under a customer's review — visible to every visitor, not
+// just the admin. No customer-facing route can ever call this.
+const adminReplyToReview = async (req, res) => {
+  try {
+    const { reply } = req.body;
+    if (typeof reply !== 'string') {
+      return res.status(400).json({ message: 'Reply must be text.' });
+    }
+    const trimmed = reply.trim();
+    if (trimmed.length > MAX_REPLY_LENGTH) {
+      return res.status(400).json({ message: `Reply must be no more than ${MAX_REPLY_LENGTH} characters.` });
+    }
+
+    const [rows] = await pool.query('SELECT id FROM reviews WHERE id = ?', [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Review not found' });
+    }
+
+    await pool.query('UPDATE reviews SET admin_reply = ?, admin_reply_at = ? WHERE id = ?', [
+      trimmed || null,
+      trimmed ? new Date() : null,
+      req.params.id,
+    ]);
+
+    const [[review]] = await pool.query(`${reviewSelect} WHERE r.id = ?`, [req.params.id]);
+    res.json({ message: trimmed ? 'Reply posted' : 'Reply removed', review: publicReview(review) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { getReviews, addReview, deleteReview, adminDeleteReview, adminReplyToReview };

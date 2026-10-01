@@ -1,13 +1,13 @@
 import { useState } from 'react';
 
-const message = 'First-time customers: 25% off';
+const message = 'First-time users: 30% off with code FIRST30';
 
 export default function AnnouncementBar() {
   const [paused, setPaused] = useState(false);
 
   return (
-    <div className="flex items-center bg-ink text-cream">
-      <p className="sr-only">{message}. Complimentary shipping over ₹1,999. Easy 3-month returns.</p>
+    <div className="announcement-bar flex items-center">
+      <p className="sr-only">{message}. Complimentary shipping over ₹1,999. Easy 1-month returns.</p>
       <div className="min-w-0 flex-1 overflow-hidden" aria-hidden="true">
         <div className="announcement-track" style={{ animationPlayState: paused ? 'paused' : 'running' }}>
           {[0, 1].map((copy) => (
@@ -18,7 +18,7 @@ export default function AnnouncementBar() {
                   <span className="text-clay">•</span>
                   <span>Complimentary shipping over ₹1,999</span>
                   <span className="text-clay">•</span>
-                  <span>Easy 3-month returns</span>
+                  <span>Easy 1-month returns</span>
                   <span className="text-clay">•</span>
                 </span>
               ))}

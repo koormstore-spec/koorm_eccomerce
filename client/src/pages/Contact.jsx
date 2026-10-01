@@ -4,11 +4,11 @@ export default function Contact() {
       <p className="eyebrow mb-4">We're here to help</p>
       <h1 className="section-title">Contact Us</h1>
       <p className="mt-6 max-w-xl text-base leading-relaxed text-muted">
-        Get in touch with Nikhil enterprise for questions about the collection, your order, or returns.
+        Get in touch with us for questions about the collection, your order, or returns.
       </p>
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <div className="border border-sand bg-white/70 p-6 sm:p-8">
-          <h2 className="font-serif text-2xl">Nikhil enterprise</h2>
+          <h2 className="font-serif text-2xl">Koorm</h2>
           <dl className="mt-6 space-y-6 text-sm">
             <div>
               <dt className="font-semibold">Phone</dt>
@@ -22,8 +22,8 @@ export default function Contact() {
         </div>
         <div id="returns" className="scroll-mt-56 border border-sand bg-sand/25 p-6 sm:p-8">
           <p className="eyebrow mb-3">Return policy</p>
-          <h2 className="font-serif text-3xl">3 months</h2>
-          <p className="mt-4 text-sm leading-relaxed text-muted">Our return period is 3 months. To request a return or ask about the process, please call Nikhil enterprise.</p>
+          <h2 className="font-serif text-3xl">1 month</h2>
+          <p className="mt-4 text-sm leading-relaxed text-muted">Our return period is 1 month. To request a return or ask about the process, please call us.</p>
           <a href="tel:+917892766354" className="btn-primary mt-6">Call 7892766354</a>
         </div>
       </div>

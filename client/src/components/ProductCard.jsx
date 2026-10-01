@@ -18,7 +18,6 @@ export default function ProductCard({ product }) {
   const outOfStock = Number(product.stock) === 0;
   const isWishlisted = wishlist?.some(item => item.id === product.id);
   const hasDiscount = product.discount_price && Number(product.discount_price) < Number(product.price);
-  const discount = hasDiscount ? Math.round((product.price - product.discount_price) / product.price * 100) : 0;
 
   const quickAdd = async (size) => {
     if (outOfStock) return;
@@ -30,8 +29,8 @@ export default function ProductCard({ product }) {
       await addToCart(product.id, size, 1);
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1600);
-    } catch {
-      setError('Please try again.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Please try again.');
     } finally {
       setAdding(false);
     }
@@ -46,7 +45,7 @@ export default function ProductCard({ product }) {
         </Link>
         <button type="button" className="product-quick-view" onClick={() => setQuickViewOpen(true)} aria-label={`Quick view ${product.name}`} aria-haspopup="dialog" title="Quick view"><EyeIcon width={14} height={14} aria-hidden="true" /></button>
         <div className="absolute left-2 top-2 sm:left-3 sm:top-3">
-          {outOfStock ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium text-ink">Currently unavailable</span> : hasDiscount ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium text-ink">-{discount}%</span> : isRecent(product.created_at) ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium">New</span> : null}
+          {outOfStock ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium text-red-600">Currently unavailable</span> : isRecent(product.created_at) ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium">New</span> : null}
         </div>
         {user && <button type="button" onClick={() => toggleWishlist(product.id)} aria-label="Toggle wishlist" aria-pressed={isWishlisted} className={`absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full sm:right-2 sm:top-2 ${isWishlisted ? 'text-red-600' : 'text-ink'}`}><span className="flex h-8 w-8 items-center justify-center rounded-full bg-cream/90"><HeartIcon width={17} height={17} filled={isWishlisted} /></span></button>}
         {!outOfStock && product.sizes?.length > 0 && <div className="product-quick-add">
@@ -56,7 +55,7 @@ export default function ProductCard({ product }) {
       </div>
       <div className="pt-3 sm:pt-4">
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1"><p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted">{product.brand || 'Koorm'}</p>{Number(product.num_reviews) > 0 && <span className="inline-flex items-center gap-1 text-[10px] text-muted" aria-label={`${product.rating} out of 5, ${product.num_reviews} reviews`}><StarIcon width={11} height={11} filled className="text-accent" />{Number(product.rating).toFixed(1)} <span>({product.num_reviews})</span></span>}</div>
-        <Link to={`/product/${product.slug}`} className="block"><h3 className="line-clamp-2 min-h-[2.5rem] text-[13px] font-medium leading-5 text-ink sm:text-sm">{product.name}</h3></Link>
+        <Link to={`/product/${product.slug}`} className="block"><h3 className="product-name line-clamp-2 min-h-[2.5rem] text-[13px] font-medium leading-5 text-ink sm:text-sm">{product.name}</h3></Link>
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="text-sm font-semibold">₹{Number(product.discount_price || product.price).toLocaleString('en-IN')}</span>{hasDiscount && <span className="text-xs text-muted line-through">₹{Number(product.price).toLocaleString('en-IN')}</span>}</div>
       </div>
       <Link className="product-options-link campaign-button" to={`/product/${product.slug}`}>{outOfStock ? 'View details' : 'Select options'}</Link>

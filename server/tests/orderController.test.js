@@ -64,7 +64,7 @@ describe('createOrder', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Your cart is empty' });
   });
 
-  it('rejects when a cart item exceeds available stock', async () => {
+  it('rejects when a cart item exceeds available stock, naming how many are left', async () => {
     const connection = makeConnection();
     connection.query.mockResolvedValueOnce([[
       { id: 1, size: 'M', quantity: 5, product_id: 9, name: 'Linen Shirt', images: '[]', price: 1899, stock: 2 },
@@ -76,7 +76,23 @@ describe('createOrder', () => {
     await createOrder(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Linen Shirt has insufficient stock' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Only 2 left in stock for Linen Shirt' });
+    expect(connection.beginTransaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects with an out-of-stock message (not "insufficient") when stock has hit zero', async () => {
+    const connection = makeConnection();
+    connection.query.mockResolvedValueOnce([[
+      { id: 1, size: 'M', quantity: 1, product_id: 9, name: 'Linen Shirt', images: '[]', price: 1899, stock: 0 },
+    ]]);
+    pool.getConnection.mockResolvedValueOnce(connection);
+    const req = { user: { id: 1 }, body: fullShippingBody() };
+    const res = mockRes();
+
+    await createOrder(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Linen Shirt is out of stock' });
     expect(connection.beginTransaction).not.toHaveBeenCalled();
   });
 
@@ -86,6 +102,7 @@ describe('createOrder', () => {
       .mockResolvedValueOnce([[
         { id: 1, size: 'M', quantity: 2, product_id: 9, name: 'Linen Shirt', images: '["/img.jpg"]', price: 500, stock: 10 },
       ]]) // cart lookup
+      .mockResolvedValueOnce([[{ id: 1 }]]) // lock customer for first-order eligibility
       .mockResolvedValueOnce([{ insertId: 55 }]) // INSERT order
       .mockResolvedValueOnce([{}]) // INSERT order_items
       .mockResolvedValueOnce([{}]) // UPDATE stock
@@ -116,6 +133,7 @@ describe('createOrder', () => {
       .mockResolvedValueOnce([[
         { id: 1, size: 'M', quantity: 1, product_id: 9, name: 'Linen Shirt', images: '[]', price: 2500, stock: 10 },
       ]])
+      .mockResolvedValueOnce([[{ id: 1 }]]) // lock customer for first-order eligibility
       .mockResolvedValueOnce([{ insertId: 56 }])
       .mockResolvedValueOnce([{}])
       .mockResolvedValueOnce([{}])
@@ -161,6 +179,7 @@ describe('createOrder', () => {
         min_order_amount: 0, max_discount_amount: null, usage_limit: null,
         used_count: 0, expires_at: null, is_active: 1,
       }]]) // coupon lookup
+      .mockResolvedValueOnce([[{ id: 1 }]]) // lock customer for first-order eligibility
       .mockResolvedValueOnce([{ insertId: 60 }]) // INSERT order
       .mockResolvedValueOnce([{}]) // INSERT order_items
       .mockResolvedValueOnce([{}]) // UPDATE stock
@@ -179,7 +198,7 @@ describe('createOrder', () => {
     expect(payload.coupon_code).toBe('SAVE10');
     expect(payload.total_amount).toBe(999); // 1000 - 100 discount + 99 shipping
 
-    const usageUpdateCall = connection.query.mock.calls[6];
+    const usageUpdateCall = connection.query.mock.calls.find(([sql]) => sql.includes('used_count = used_count + 1'));
     expect(usageUpdateCall[0]).toContain('used_count = used_count + 1');
     expect(usageUpdateCall[1]).toEqual([7]);
   });

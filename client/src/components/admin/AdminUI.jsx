@@ -11,6 +11,7 @@ export function AdminIcon({ type, className = '', ...props }) {
     products: <><path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9M7.5 5.5l9 5" /></>,
     orders: <><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 3h6v4H9zM9 12h6M9 16h4" /></>,
     coupon: <><path d="M3 10V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 0 0 4v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4a2 2 0 0 0 0-4Z" /><path d="M9 4v16" strokeDasharray="2 2" /></>,
+    review: <><path d="m12 3 2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.2-5.4 3.2 1.3-6-4.6-4.1 6.1-.6Z" /></>,
     logout: <><path d="M9 4H4v16h5M9 12h12m-4-4 4 4-4 4" /></>,
     external: <><path d="M14 3h7v7M21 3l-11 11M10 3H4v17h17v-6" /></>,
     image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8" cy="8" r="1.5" /><path d="m3 17 5-5 4 4 4-7 5 8" /></>,
