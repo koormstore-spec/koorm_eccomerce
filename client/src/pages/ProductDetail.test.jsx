@@ -27,6 +27,23 @@ const openReviews = async () => {
 };
 const show = () => render(<MemoryRouter initialEntries={['/product/linen-shirt']}><Routes><Route path="/product/:slug" element={<ProductDetail />} /><Route path="/login" element={<p>Login page</p>} /></Routes></MemoryRouter>);
 
+it('shows "Product not found" only for an actual 404, not any failure', async () => {
+  api.get.mockRejectedValue({ response: { status: 404 } });
+  show();
+  expect(await screen.findByText('Product not found.')).toBeInTheDocument();
+});
+
+it('shows a distinct, retryable message when the product fails to load for another reason (e.g. the server is down)', async () => {
+  api.get.mockRejectedValueOnce(new Error('Network Error'));
+  show();
+  expect(await screen.findByText(/couldn't load this product/i)).toBeInTheDocument();
+  expect(screen.queryByText('Product not found.')).not.toBeInTheDocument();
+
+  api.get.mockResolvedValueOnce({ data: product });
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByRole('heading', { name: 'Linen shirt' })).toBeInTheDocument();
+});
+
 it('shows a toast from either add button and adds only after a size is selected', async () => {
   show();
   await screen.findByRole('heading', { name: 'Linen shirt' });

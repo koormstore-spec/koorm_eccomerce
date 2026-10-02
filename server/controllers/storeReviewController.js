@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { logError } = require('../utils/logger');
 
 const selectReviews = `SELECT r.id, r.rating, r.comment, r.admin_reply, r.admin_reply_at, r.created_at,
   u.name AS user_name FROM store_reviews r JOIN users u ON u.id = r.user_id`;
@@ -19,7 +20,8 @@ const getStoreReviews = async (req, res) => {
     const [rows] = await pool.query(`${selectReviews} ORDER BY r.created_at DESC, r.id DESC LIMIT ? OFFSET ?`, [limit, (page - 1) * limit]);
     const [[{ total }]] = await pool.query('SELECT COUNT(*) AS total FROM store_reviews');
     res.json({ reviews: rows.map(publicReview), page, pages: Math.ceil(total / limit), total });
-  } catch {
+  } catch (err) {
+    logError(err, req, { source: 'getStoreReviews' });
     res.status(500).json({ message: 'Could not load reviews. Please try again.' });
   }
 };
@@ -32,12 +34,24 @@ const addStoreReview = async (req, res) => {
   if (typeof comment !== 'string' || !comment.trim() || comment.trim().length > 1000) {
     return res.status(400).json({ message: 'Write a review of 1 to 1,000 characters.' });
   }
+  let connection;
   try {
-    const [result] = await pool.query('INSERT INTO store_reviews (user_id, rating, comment) VALUES (?, ?, ?)', [req.user.id, rating, comment.trim()]);
-    const [[review]] = await pool.query(`${selectReviews} WHERE r.id = ?`, [result.insertId]);
-    res.status(201).json({ message: 'Review submitted', review: publicReview(review) });
-  } catch {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    const [result] = await connection.query('INSERT INTO store_reviews (user_id, rating, comment) VALUES (?, ?, ?)', [req.user.id, rating, comment.trim()]);
+    const [[review]] = await connection.query(`${selectReviews} WHERE r.id = ?`, [result.insertId]);
+    const savedReview = publicReview(review);
+    await connection.commit();
+    res.status(201).json({ message: 'Review submitted', review: savedReview });
+  } catch (err) {
+    if (connection) {
+      try { await connection.rollback(); }
+      catch (rollbackError) { logError(rollbackError, req, { source: 'addStoreReviewRollback' }); }
+    }
+    logError(err, req, { source: 'addStoreReview' });
     res.status(500).json({ message: 'Could not save your review. Please try again.' });
+  } finally {
+    if (connection) connection.release();
   }
 };
 

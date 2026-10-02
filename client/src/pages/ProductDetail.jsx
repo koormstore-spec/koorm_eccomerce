@@ -22,6 +22,7 @@ export default function ProductDetail() {
   const { addToCart, wishlist, toggleWishlist } = useCart();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
   const [sizeNotice, setSizeNotice] = useState(0);
   const [qty, setQty] = useState(1);
@@ -36,9 +37,14 @@ export default function ProductDetail() {
 
   const load = () => {
     setLoading(true);
+    setLoadError('');
     setSizeNotice(0);
     api.get(`/products/${slug}`)
       .then(({ data }) => { setProduct(data); setSelectedSize(''); })
+      .catch((err) => {
+        setProduct(null);
+        setLoadError(err.response?.status === 404 ? 'not-found' : 'error');
+      })
       .finally(() => setLoading(false));
   };
 
@@ -77,6 +83,12 @@ export default function ProductDetail() {
   };
 
   if (loading) return <Loader full />;
+  if (loadError === 'error') return (
+    <div className="container-x py-20 text-center">
+      <p className="text-muted">We couldn't load this product. Please check your connection and try again.</p>
+      <button type="button" onClick={load} className="btn-outline mt-5">Try again</button>
+    </div>
+  );
   if (!product) return <p className="container-x py-20 text-center">Product not found.</p>;
 
   const outOfStock = Number(product.stock) === 0;

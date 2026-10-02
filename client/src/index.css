@@ -237,9 +237,8 @@ body {
   .product-card-media { @apply relative overflow-hidden bg-[#eeeee9]; aspect-ratio: 3 / 4; }
   .product-card-media img { @apply h-full w-full object-cover object-top transition-transform duration-700; }
   .product-card-image-alt { @apply absolute inset-0 opacity-0 transition-opacity duration-500; }
-  .product-quick-add { @apply absolute inset-x-3 bottom-3 hidden invisible pointer-events-none bg-cream/95 p-3 opacity-0 transition-opacity duration-200 md:block; }
-  .product-quick-view:focus-visible ~ .product-quick-add,
-  .product-quick-add:focus-within { @apply visible pointer-events-auto opacity-100; }
+  .product-quick-add { @apply absolute inset-x-0 bottom-[38px] hidden invisible pointer-events-none bg-cream/95 p-3 opacity-0 transition-opacity duration-200 md:block; }
+  .product-card-actions-keyboard .product-quick-add { @apply visible pointer-events-auto opacity-100; }
   .auth-shell { @apply container-x py-8 md:py-14; }
   .auth-layout { @apply mx-auto grid max-w-5xl grid-cols-1 overflow-hidden border border-sand bg-white md:grid-cols-2; }
   .auth-photo { @apply relative hidden min-h-[34rem] bg-sand md:block; }
@@ -267,9 +266,7 @@ body {
 @media (hover: hover) and (pointer: fine) {
   .edit-card:hover .edit-image img { transform: scale(1.025); }
   .product-card:hover .product-card-image-alt { opacity: 1; }
-  .product-quick-view:hover ~ .product-quick-add,
-  .product-quick-add:hover,
-  .product-card:hover .product-quick-add { visibility: visible; pointer-events: auto; opacity: 1; }
+  .product-card-actions:hover .product-quick-add { visibility: visible; pointer-events: auto; opacity: 1; }
 }
 
 .drawer-layer {

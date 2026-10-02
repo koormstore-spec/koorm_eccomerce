@@ -73,6 +73,13 @@ const initializeDatabase = async () => {
     await addColumnIfMissing(connection, 'admins', 'verification_code', 'VARCHAR(64) NULL');
     await addColumnIfMissing(connection, 'admins', 'verification_code_expiry', 'DATETIME NULL');
 
+    // CREATE TABLE IF NOT EXISTS does not upgrade existing review tables.
+    // Review reads (including the response after saving) require these columns.
+    for (const table of ['reviews', 'store_reviews']) {
+      await addColumnIfMissing(connection, table, 'admin_reply', 'TEXT NULL');
+      await addColumnIfMissing(connection, table, 'admin_reply_at', 'TIMESTAMP NULL');
+    }
+
     await dropColumnIfPresent(connection, 'users', 'password');
     await dropColumnIfPresent(connection, 'users', 'reset_token');
     await dropColumnIfPresent(connection, 'users', 'reset_token_expiry');
