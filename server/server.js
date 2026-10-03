@@ -2,10 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const compression = require('compression');
 const { initializeDatabase } = require('./config/databaseInit');
 const { testConnection } = require('./config/db');
 const { notFound, errorHandler, logErrorResponses } = require('./middleware/errorHandler');
 const { logError } = require('./utils/logger');
+const { publicCache } = require('./middleware/publicCache');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -29,18 +31,22 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
+app.use(compression());
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(logErrorResponses);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/categories', categoryRoutes);
+app.use('/api/products', publicCache(), productRoutes);
+app.use('/api/categories', publicCache(), categoryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
+// Only the public review listings are cached; other review routes are writes.
+const cacheReviewListings = publicCache();
+app.use('/api/reviews', (req, res, next) => (['/', '/store'].includes(req.path) ? cacheReviewListings(req, res, next) : next()));
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);

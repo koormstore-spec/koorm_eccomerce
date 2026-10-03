@@ -1,6 +1,6 @@
 # Koorm — Clothing E-Commerce Web App
 
-A full-stack e-commerce app for clothing, built with **React (Vite + Tailwind CSS)**, **Node.js/Express**, and **MySQL**. Checkout uses **Cash on Delivery only** — no payment gateway integration.
+A full-stack e-commerce app for clothing, built with **Next.js (React + Tailwind CSS)**, **Node.js/Express**, and **MySQL**. Checkout uses **Cash on Delivery only** — no payment gateway integration.
 
 ## Features
 
@@ -13,7 +13,7 @@ A full-stack e-commerce app for clothing, built with **React (Vite + Tailwind CS
 
 ## Tech Stack
 
-- **Frontend:** React 18, Vite, React Router, Tailwind CSS, Axios
+- **Frontend:** Next.js 16 (App Router), React 19, Tailwind CSS, Axios
 - **Backend:** Node.js, Express, JWT auth, bcrypt
 - **Database:** MySQL (raw SQL via `mysql2`)
 
@@ -22,7 +22,7 @@ A full-stack e-commerce app for clothing, built with **React (Vite + Tailwind CS
 ```
 koorm_cloths/
 ├── server/     # Express API + MySQL
-└── client/     # React frontend
+└── client/     # Next.js frontend (app/ = routes, src/ = components and views)
 ```
 
 ## Setup
@@ -46,14 +46,34 @@ npm run seed             # provisions admin@koorm.com; finish setup from /admin/
 npm run dev               # starts API on http://localhost:5000
 ```
 
+The API upgrades existing database tables before accepting requests, including
+the reply columns required by store and product reviews. After deploying backend
+changes, restart the API so these upgrades run against the configured `DB_NAME`.
+The database account must be allowed to alter tables; existing reviews are preserved.
+
 ### 3. Frontend
 
 ```bash
 cd client
 npm install
-cp .env.example .env     # VITE_API_URL=http://localhost:5000/api
+cp .env.example .env     # NEXT_PUBLIC_API_URL=http://localhost:5000/api
 npm run dev               # starts app on http://localhost:5173
 ```
+
+Production (needs a Node.js host, e.g. Vercel, a VPS, or Hostinger Node.js hosting):
+
+```bash
+npm run build             # pre-renders the home page and every product page
+npm start                 # serves on port 5173
+```
+
+The home, shop and product pages are rendered on the server, so they arrive as
+full HTML with titles, descriptions and share previews, and refresh from the API
+every 60 seconds. `NEXT_PUBLIC_SITE_URL` sets the domain used in canonical links,
+the sitemap and share images. Set `API_URL` too if the Next.js server should reach
+the API at a different (e.g. internal) address than browsers do. The API must be
+running during `npm run build`; if it isn't, pages still build and load their data
+in the browser.
 
 ### 4. Login
 
