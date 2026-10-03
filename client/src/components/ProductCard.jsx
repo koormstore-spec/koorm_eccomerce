@@ -1,9 +1,15 @@
-﻿import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+'use client';
+
+import { useState } from 'react';
+import { Link, useNavigate } from '../lib/router';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { EyeIcon, HeartIcon, StarIcon } from './Icons';
 import QuickView from './QuickView';
+import OptimizedImage from './OptimizedImage';
+
+// Cards are 2 columns on phones, 3 on tablets, 4 on desktop.
+const CARD_SIZES = '(max-width: 768px) 50vw, (max-width: 1100px) 33vw, 25vw';
 
 const isRecent = (date) => date && (Date.now() - new Date(date).getTime()) / 86400000 <= 21;
 
@@ -58,8 +64,8 @@ export default function ProductCard({ product }) {
     <article className="product-card group min-w-0">
       <div className="product-card-media">
         <Link to={`/product/${product.slug}`} className="block h-full" aria-label={`View ${product.name}`}>
-          <img src={product.images?.[0]} alt={product.name} width="1000" height="1333" loading="lazy" decoding="async" />
-          {product.images?.[1] && <img src={product.images[1]} alt="" aria-hidden="true" width="1000" height="1333" loading="lazy" decoding="async" className="product-card-image-alt" />}
+          <OptimizedImage src={product.images?.[0]} alt={product.name} width={1000} height={1333} sizes={CARD_SIZES} />
+          {product.images?.[1] && <OptimizedImage src={product.images[1]} alt="" aria-hidden="true" width={1000} height={1333} sizes={CARD_SIZES} className="product-card-image-alt" />}
         </Link>
         <div className="absolute left-2 top-2 sm:left-3 sm:top-3">
           {outOfStock ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium text-red-600">Currently unavailable</span> : isRecent(product.created_at) ? <span className="inline-flex rounded-sm bg-cream/95 px-2 py-1 text-[10px] font-medium">New</span> : null}

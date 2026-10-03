@@ -1,6 +1,9 @@
-﻿import { useEffect, useState } from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
 import { useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams } from 'next/navigation';
+import { Link, useNavigate, useLocation } from '../lib/router';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import BrandMark from './BrandMark';
@@ -16,7 +19,15 @@ const NAV_LINKS = [
   { label: 'Sale', to: '/shop?sale=true' },
 ];
 
+// Reading the query string opts a statically rendered page out of server
+// rendering, so it's isolated here: layouts render <NavbarView search="" />
+// as the Suspense fallback and this fills in the active link on the client.
 export default function Navbar() {
+  const searchParams = useSearchParams();
+  return <NavbarView search={searchParams.toString()} />;
+}
+
+export function NavbarView({ search = '' }) {
   const { user, logout } = useAuth();
   const { cartCount, wishlist } = useCart();
   const navigate = useNavigate();
@@ -26,11 +37,11 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const params = new URLSearchParams(location.search);
+  const params = new URLSearchParams(search);
   const activeLink = location.pathname === '/shop'
     ? params.get('sale') === 'true' ? 'Sale' : params.get('sort') === 'newest' ? 'New in' : 'Explore'
     : NAV_LINKS.find(link => link.to === location.pathname)?.label;
-  useEffect(() => { setMenuOpen(false); setUserMenuOpen(false); setSearchOpen(false); }, [location]);
+  useEffect(() => { setMenuOpen(false); setUserMenuOpen(false); setSearchOpen(false); }, [location.pathname, search]);
   useEffect(() => {
     const close = e => { if (e.key === 'Escape') { setUserMenuOpen(false); setSearchOpen(false); } };
     const closeOutside = e => { if (!headerRef.current?.contains(e.target)) { setUserMenuOpen(false); setSearchOpen(false); } };

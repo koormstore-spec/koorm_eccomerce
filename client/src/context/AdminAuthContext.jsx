@@ -1,13 +1,24 @@
-import { createContext, useContext, useState } from 'react';
+'use client';
+
+import { createContext, useContext, useEffect, useState } from 'react';
 import adminApi from '../api/adminAxios';
 
 const AdminAuthContext = createContext(null);
 
 export const AdminAuthProvider = ({ children }) => {
-  const [admin, setAdmin] = useState(() => {
-    const stored = localStorage.getItem('koorm_admin');
-    return stored ? JSON.parse(stored) : null;
-  });
+  // Loaded after mount (localStorage is browser-only); see AuthContext.
+  const [admin, setAdmin] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('koorm_admin');
+      if (stored) setAdmin(JSON.parse(stored));
+    } catch {
+      localStorage.removeItem('koorm_admin');
+    }
+    setReady(true);
+  }, []);
 
   const adminLogin = async (email, password) => {
     const { data } = await adminApi.post('/admin/auth/login', { email, password });
@@ -34,7 +45,7 @@ export const AdminAuthProvider = ({ children }) => {
   };
 
   return (
-    <AdminAuthContext.Provider value={{ admin, adminLogin, requestAdminSetupCode, verifyAdminSetup, adminLogout }}>
+    <AdminAuthContext.Provider value={{ admin, ready, adminLogin, requestAdminSetupCode, verifyAdminSetup, adminLogout }}>
       {children}
     </AdminAuthContext.Provider>
   );

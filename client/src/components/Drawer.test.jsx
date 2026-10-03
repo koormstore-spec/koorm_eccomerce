@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { Link, MemoryRouter } from 'react-router-dom';
+import { Link } from '../lib/router';
+import { MemoryRouter } from '../test/router';
 import Drawer from './Drawer';
 
 function Example() {

@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useId, useRef, useState } from 'react';
 import ProductCard from './ProductCard';
 import { ChevronRightIcon } from './Icons';
@@ -9,7 +11,13 @@ export default function ProductCarousel({ products, label = 'You may also like' 
   const trackId = useId();
   const [canPrevious, setCanPrevious] = useState(false);
   const [canNext, setCanNext] = useState(false);
-  const [autoPlay, setAutoPlay] = useState(() => !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  const [autoPlay, setAutoPlay] = useState(true);
+
+  // matchMedia is browser-only, so honour reduced motion after mount rather
+  // than in the initial state (which is also rendered on the server).
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) setAutoPlay(false);
+  }, []);
 
   useEffect(() => {
     const element = track.current;

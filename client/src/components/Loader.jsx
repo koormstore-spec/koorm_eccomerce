@@ -1,3 +1,5 @@
+'use client';
+
 export default function Loader({ full }) {
   return (
     <div className={full ? 'flex items-center justify-center min-h-[60vh]' : 'flex items-center justify-center py-10'}>

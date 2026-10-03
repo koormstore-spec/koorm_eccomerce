@@ -1,5 +1,7 @@
-﻿import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { Link } from '../lib/router';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { StarIcon } from './Icons';

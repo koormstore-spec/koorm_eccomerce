@@ -1,5 +1,7 @@
-﻿import { useState } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
+'use client';
+
+import { useState } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from '../lib/router';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import Drawer from './Drawer';
 import { MenuIcon, CloseIcon, ChevronRightIcon } from './Icons';

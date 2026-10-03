@@ -1,4 +1,4 @@
-﻿import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import StockEditor from './StockEditor';
 import adminApi from '../../api/adminAxios';

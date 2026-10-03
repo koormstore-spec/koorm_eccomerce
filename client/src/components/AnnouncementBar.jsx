@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 
 const message = 'First-time users: 30% off with code FIRST30';

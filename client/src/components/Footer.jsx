@@ -1,4 +1,6 @@
-﻿import { Link } from 'react-router-dom';
+'use client';
+
+import { Link } from '../lib/router';
 import { useAuth } from '../context/AuthContext';
 import { ChevronRightIcon, TruckIcon, CashIcon } from './Icons';
 

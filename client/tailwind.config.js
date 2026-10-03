@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: ['./app/**/*.{js,jsx}', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
@@ -12,8 +12,8 @@ export default {
         clay: '#b08968',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        serif: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         xs: ['0.8125rem', { lineHeight: '1.25rem' }],

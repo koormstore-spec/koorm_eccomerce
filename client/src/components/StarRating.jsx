@@ -1,3 +1,5 @@
+'use client';
+
 import { StarIcon } from './Icons';
 
 export default function StarRating({ rating = 0, count, iconSize = 13 }) {
