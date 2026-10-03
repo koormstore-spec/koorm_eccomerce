@@ -22,7 +22,10 @@ export default async function ShopPage({ searchParams }) {
   params.set('page', String(Math.max(1, Number(params.get('page')) || 1)));
   params.set('limit', '12');
 
-  const { data } = await getFromApi(`/products?${params}`);
+  const [{ data }, { data: filters }] = await Promise.all([
+    getFromApi(`/products?${params}`),
+    getFromApi('/products/filters'),
+  ]);
   const initialData = data ? { query, products: data.products, pages: data.pages, total: data.total } : null;
-  return <Shop initialData={initialData} />;
+  return <Shop initialData={initialData} initialColors={filters?.colors ?? null} />;
 }

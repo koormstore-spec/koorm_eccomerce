@@ -7,26 +7,12 @@ import { useAuth } from '../context/AuthContext';
 import { EyeIcon, HeartIcon, StarIcon } from './Icons';
 import QuickView from './QuickView';
 import OptimizedImage from './OptimizedImage';
+import { swatchBackground } from '../lib/colorSwatches';
 
 // Cards are 2 columns on phones, 3 on tablets, 4 on desktop.
 const CARD_SIZES = '(max-width: 768px) 50vw, (max-width: 1100px) 33vw, 25vw';
 
 const isRecent = (date) => date && (Date.now() - new Date(date).getTime()) / 86400000 <= 21;
-
-const colorSwatches = {
-  'light pink': '#e8bfc5', 'blush pink': '#dca7a5', 'aqua blue': '#83bcc8',
-  burgundy: '#632f40', charcoal: '#44464a', 'charcoal grey': '#55575b',
-  'light blue': '#a8c8dd', 'royal blue': '#345da1', 'chocolate brown': '#54382b',
-  'dark navy': '#202c43', navy: '#202c43', rust: '#a55538', mustard: '#b49a3c',
-  'off white': '#eee9db', 'olive green': '#73794d', 'petrol blue': '#366570',
-  'sand beige': '#c8b99e', cherry: '#903c47', 'rust orange': '#b6643d',
-  'black & white': 'linear-gradient(135deg, #252525 50%, #f4f3ee 50%)',
-  'white & grey': 'linear-gradient(135deg, #f4f3ee 50%, #929598 50%)',
-};
-const swatchBackground = color => {
-  const name = color.toLowerCase().replace(/-/g, ' ');
-  return colorSwatches[name] || (globalThis.CSS?.supports('color', color) ? color : '#d2cec7');
-};
 
 export default function ProductCard({ product }) {
   const { wishlist, toggleWishlist, addToCart } = useCart();

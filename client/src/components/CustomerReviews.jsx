@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Link } from '../lib/router';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { StarIcon } from './Icons';
+import { ChevronRightIcon, StarIcon } from './Icons';
+
+const REVIEW_AUTOPLAY_INTERVAL_MS = 3000;
 
 const reviewDate = value => {
   if (!value) return null;
@@ -28,6 +30,76 @@ export default function CustomerReviews() {
   const [message, setMessage] = useState('');
   const savingRef = useRef(false);
   const loadingRef = useRef(false);
+  const reviewTrack = useRef(null);
+  const reviewTrackId = useId();
+  const [canPrevious, setCanPrevious] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  useEffect(() => {
+    const track = reviewTrack.current;
+    if (!track) return undefined;
+    const update = () => {
+      setCanPrevious(track.scrollLeft > 2);
+      setCanNext(track.scrollLeft + track.clientWidth < track.scrollWidth - 2);
+    };
+    update();
+    track.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    const observer = window.ResizeObserver ? new ResizeObserver(update) : null;
+    observer?.observe(track);
+    return () => {
+      track.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      observer?.disconnect();
+    };
+  }, [reviews.length]);
+
+  useEffect(() => {
+    const track = reviewTrack.current;
+    if (!track || reviews.length < 2) return undefined;
+    const carousel = track.parentElement;
+    let pointerDown = false;
+    const advance = () => {
+      const bounds = track.getBoundingClientRect();
+      const focused = document.activeElement;
+      const keyboardFocus = carousel.contains(focused) && focused.matches(':focus-visible');
+      const hovering = window.matchMedia?.('(hover: hover)').matches && carousel.matches(':hover');
+      if (document.hidden || pointerDown || keyboardFocus || hovering || bounds.bottom <= 0 || bounds.top >= window.innerHeight || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || document.querySelector('dialog[open], [aria-modal="true"]')) return;
+      if (track.scrollWidth <= track.clientWidth + 2) return;
+      if (track.scrollLeft + track.clientWidth >= track.scrollWidth - 2) {
+        track.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        const cardWidth = track.firstElementChild?.getBoundingClientRect().width || track.clientWidth;
+        const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+        track.scrollBy({ left: cardWidth + gap, behavior: 'smooth' });
+      }
+    };
+    let timer = window.setInterval(advance, REVIEW_AUTOPLAY_INTERVAL_MS);
+    const restart = () => { window.clearInterval(timer); timer = window.setInterval(advance, REVIEW_AUTOPLAY_INTERVAL_MS); };
+    const hold = () => { pointerDown = true; restart(); };
+    const release = () => { if (pointerDown) { pointerDown = false; restart(); } };
+    carousel.addEventListener('pointerdown', hold, { passive: true });
+    window.addEventListener('pointerup', release, { passive: true });
+    window.addEventListener('pointercancel', release, { passive: true });
+    for (const event of ['pointerleave', 'keydown', 'focusout', 'wheel']) carousel.addEventListener(event, restart, { passive: true });
+    document.addEventListener('visibilitychange', restart);
+    return () => {
+      window.clearInterval(timer);
+      carousel.removeEventListener('pointerdown', hold);
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+      for (const event of ['pointerleave', 'keydown', 'focusout', 'wheel']) carousel.removeEventListener(event, restart);
+      document.removeEventListener('visibilitychange', restart);
+    };
+  }, [reviews.length]);
+
+  const moveReviews = direction => {
+    const track = reviewTrack.current;
+    if (!track) return;
+    const cardWidth = track.firstElementChild?.getBoundingClientRect().width || track.clientWidth;
+    const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+    track.scrollBy({ left: direction * (cardWidth + gap), behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -74,6 +146,7 @@ export default function CustomerReviews() {
     try {
       const { data } = await api.post('/reviews/store', { rating, comment: comment.trim() });
       setReviews(current => [data.review, ...current.filter(review => review.id !== data.review.id)]);
+      reviewTrack.current?.scrollTo?.({ left: 0, behavior: 'instant' });
       setMessage('Thank you! Your review is now displayed above.');
       setComment('');
       setRating(0);
@@ -89,7 +162,16 @@ export default function CustomerReviews() {
         <h2 id="customer-reviews-heading" className="reference-heading">Customer reviews</h2>
         <p className="reviews-preview-note">Your fit. Your style. Your experience. Share it with the Koorm community.</p>
       </div>
-      <div className="review-card-grid" aria-busy={loading}>
+      <div className="review-carousel" role="group" aria-label="Customer review carousel" aria-roledescription="carousel">
+        {(canPrevious || canNext) && <div className="review-carousel-controls">
+          <button type="button" aria-label="Previous reviews" aria-controls={reviewTrackId} disabled={!canPrevious} onClick={() => moveReviews(-1)}><ChevronRightIcon width={18} height={18} className="rotate-180" aria-hidden="true" /></button>
+          <button type="button" aria-label="Next reviews" aria-controls={reviewTrackId} disabled={!canNext} onClick={() => moveReviews(1)}><ChevronRightIcon width={18} height={18} aria-hidden="true" /></button>
+        </div>}
+      <div id={reviewTrackId} ref={reviewTrack} className="review-card-grid" aria-busy={loading} tabIndex={reviews.length ? 0 : -1} role="group" aria-label="Scrollable customer reviews" onKeyDown={event => {
+        if (event.target !== event.currentTarget || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        event.preventDefault();
+        moveReviews(event.key === 'ArrowLeft' ? -1 : 1);
+      }}>
         {reviews.map(review => {
           const date = reviewDate(review.created_at);
           return (
@@ -108,6 +190,7 @@ export default function CustomerReviews() {
           </article>
           );
         })}
+      </div>
       </div>
       <div className="review-list-status">
         {loading && <p role="status">Loading reviews...</p>}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from '../lib/router';
 import api from '../api/axios';
 import ProductCard from '../components/ProductCard';
+import ColorSelect from '../components/ColorSelect';
 import SkeletonGrid from '../components/SkeletonGrid';
 import { ChevronDownIcon, CloseIcon } from '../components/Icons';
 
@@ -12,7 +13,7 @@ const FILTER_KEYS = ['category', 'search', 'minPrice', 'maxPrice', 'sale', 'inSt
 
 // `initialData` is the server-rendered first result set ({ query, products,
 // pages, total }); it's used once, for the exact query it was fetched with.
-export default function Shop({ initialData = null }) {
+export default function Shop({ initialData = null, initialColors = null }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState(initialData?.products || []);
   const [pages, setPages] = useState(initialData?.pages || 1);
@@ -22,10 +23,16 @@ export default function Shop({ initialData = null }) {
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [colors, setColors] = useState(initialColors || []);
+  const [colorsLoading, setColorsLoading] = useState(initialColors === null);
+  const [colorsError, setColorsError] = useState(false);
+  const [colorsRetry, setColorsRetry] = useState(0);
   const queryString = searchParams.toString();
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const sort = searchParams.get('sort') || '';
   const search = searchParams.get('search') || '';
+  const color = searchParams.get('color') || '';
+  const colorOptions = color && !colors.includes(color) ? [color, ...colors] : colors;
   const activeFilters = FILTER_KEYS.filter(key => searchParams.get(key));
   const title = search ? `Results for “${search}”` : searchParams.get('sale') === 'true' ? 'The sale edit' : sort === 'newest' ? 'New arrivals' : 'Men’s shirts';
   const updateParams = updates => {
@@ -34,6 +41,22 @@ export default function Shop({ initialData = null }) {
     next.delete('page');
     setSearchParams(next);
   };
+  useEffect(() => {
+    if (initialColors !== null) {
+      setColors(initialColors);
+      setColorsLoading(false);
+      setColorsError(false);
+      return undefined;
+    }
+    const controller = new AbortController();
+    setColorsLoading(true);
+    setColorsError(false);
+    api.get('/products/filters', { signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) setColors(data.colors); })
+      .catch(() => { if (!controller.signal.aborted) setColorsError(true); })
+      .finally(() => { if (!controller.signal.aborted) setColorsLoading(false); });
+    return () => controller.abort();
+  }, [initialColors, colorsRetry]);
   useEffect(() => {
     if (serverQuery.current === queryString) {
       serverQuery.current = null;
@@ -55,7 +78,14 @@ export default function Shop({ initialData = null }) {
     <div className="shop-intro"><p className="shop-breadcrumb"><Link to="/">Home</Link> / {search ? 'Search' : 'Men’s Shirts'}</p><h1 className="reference-heading">{title}</h1><p className="reference-subtitle">Crisp, clean, and versatile. These are the styles you’ll turn to again and again.</p></div>
     <div className="shop-toolbar"><div><p aria-live="polite">{loading ? 'Loading the collection…' : error ? 'Collection unavailable' : `Showing ${total ? (page - 1) * 12 + 1 : 0}–${Math.min(page * 12, total)} of ${total} results`}</p><button className="shop-filter-toggle" aria-expanded={filtersOpen} aria-controls="collection-filters" onClick={() => setFiltersOpen(!filtersOpen)}><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 6h18M6 12h12M9 18h6" /></svg>Filter {activeFilters.length > 0 && `(${activeFilters.length})`}</button></div><div className="shop-sort"><select aria-label="Sort products" value={sort} onChange={e => updateParams({ sort: e.target.value })}>{SORT_OPTIONS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><ChevronDownIcon width={16} /></div></div>
     {filtersOpen && <section id="collection-filters" className="collection-filters" aria-label="Collection filters">
-      <div className="filter-fields"><fieldset><legend>Price range</legend><div className="flex items-center gap-3"><input key={`min-${searchParams.get('minPrice')}`} aria-label="Minimum price" type="number" min="0" placeholder="Min ₹" defaultValue={searchParams.get('minPrice') || ''} onBlur={e => updateParams({ minPrice: e.target.value })} className="input-field" /><span>–</span><input key={`max-${searchParams.get('maxPrice')}`} aria-label="Maximum price" type="number" min="0" placeholder="Max ₹" defaultValue={searchParams.get('maxPrice') || ''} onBlur={e => updateParams({ maxPrice: e.target.value })} className="input-field" /></div></fieldset><label>Fabric<select className="input-field" value={['Cotton','Linen','Oxford','Twill'].includes(search) ? search : ''} onChange={e => updateParams({ search: e.target.value })}><option value="">All fabrics</option>{['Cotton','Linen','Oxford','Twill'].map(v => <option key={v}>{v}</option>)}</select></label><label>Colour<input className="input-field" key={`color-${searchParams.get('color')}`} placeholder="e.g. Blue" defaultValue={searchParams.get('color') || ''} onBlur={e => updateParams({ color: e.target.value.trim() })} /></label></div>
+      <div className="filter-fields">
+        <fieldset><legend>Price range</legend><div className="flex items-center gap-3"><input key={`min-${searchParams.get('minPrice')}`} aria-label="Minimum price" type="number" min="0" placeholder="Min ₹" defaultValue={searchParams.get('minPrice') || ''} onBlur={e => updateParams({ minPrice: e.target.value })} className="input-field" /><span>–</span><input key={`max-${searchParams.get('maxPrice')}`} aria-label="Maximum price" type="number" min="0" placeholder="Max ₹" defaultValue={searchParams.get('maxPrice') || ''} onBlur={e => updateParams({ maxPrice: e.target.value })} className="input-field" /></div></fieldset>
+        <label>Fabric<select className="input-field" value={['Cotton','Linen','Oxford','Twill'].includes(search) ? search : ''} onChange={e => updateParams({ search: e.target.value })}><option value="">All fabrics</option>{['Cotton','Linen','Oxford','Twill'].map(v => <option key={v}>{v}</option>)}</select></label>
+        <div>
+          <ColorSelect colors={colorOptions} value={color} disabled={colorsLoading} onChange={value => updateParams({ color: value })} />
+          {colorsError && <p role="alert" className="mt-2 text-sm">Could not load colours. <button type="button" className="text-link" onClick={() => setColorsRetry(value => value + 1)}>Retry colours</button></p>}
+        </div>
+      </div>
       <div className="filter-checkboxes"><label><input type="checkbox" checked={searchParams.get('inStock') === 'true'} onChange={e => updateParams({ inStock: e.target.checked ? 'true' : '' })} /> In stock</label><label><input type="checkbox" checked={searchParams.get('sale') === 'true'} onChange={e => updateParams({ sale: e.target.checked ? 'true' : '' })} /> On sale</label></div>
       <fieldset><legend className="mb-3 text-sm font-semibold">Product size</legend><div className="flex flex-wrap gap-2">{['S','M','L','XL','XXL'].map(size => <button key={size} className="quick-view-size" aria-pressed={searchParams.get('size') === size} onClick={() => updateParams({ size: searchParams.get('size') === size ? '' : size })}>{size}</button>)}</div></fieldset>
     </section>}
