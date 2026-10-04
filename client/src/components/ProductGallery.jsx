@@ -1,8 +1,5 @@
-'use client';
-
 import { useState } from 'react';
 import ZoomImage from './ZoomImage';
-import OptimizedImage from './OptimizedImage';
 import { ChevronRightIcon } from './Icons';
 
 export default function ProductGallery({ images, name }) {
@@ -26,7 +23,7 @@ export default function ProductGallery({ images, name }) {
         </div>}
       </div>
       <div className="gallery-thumbnails" aria-label="Choose a product image">
-        {images.map((image, index) => <button key={`${image}-${index}`} type="button" className="gallery-thumbnail" onClick={() => setActive(index)} aria-label={`View product image ${index + 1}`} aria-pressed={active === index}><OptimizedImage src={image} alt="" width={1000} height={1333} sizes="80px" /></button>)}
+        {images.map((image, index) => <button key={`${image}-${index}`} type="button" className="gallery-thumbnail" onClick={() => setActive(index)} aria-label={`View product image ${index + 1}`} aria-pressed={active === index}><img src={image} alt="" width="1000" height="1333" loading="lazy" /></button>)}
       </div>
       <p className="mt-1 text-center text-[11px] text-muted">A closer look at the details. Tap the image to zoom.</p>
     </div>

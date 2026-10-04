@@ -1,5 +1,3 @@
-'use client';
-
 const base = {
   width: 20,
   height: 20,

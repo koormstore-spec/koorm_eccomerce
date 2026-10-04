@@ -1,8 +1,7 @@
-'use client';
-
 import { useState } from 'react';
 
 const message = 'First-time users: 30% off with code FIRST30';
+const [offerText] = message.split(' FIRST30');
 
 export default function AnnouncementBar() {
   const [paused, setPaused] = useState(false);
@@ -16,7 +15,7 @@ export default function AnnouncementBar() {
             <div key={copy} className="announcement-copy">
               {[0, 1].map((repeat) => (
                 <span key={repeat} className="flex shrink-0 items-center gap-8 px-4">
-                  <strong className="font-semibold">{message}</strong>
+                  <strong className="font-semibold">{offerText} <span className="first-offer-code">FIRST30</span></strong>
                   <span className="text-clay">•</span>
                   <span>Complimentary shipping over ₹1,999</span>
                   <span className="text-clay">•</span>

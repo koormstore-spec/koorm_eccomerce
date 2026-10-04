@@ -1,9 +1,6 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import { useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Link, useNavigate, useLocation } from '../lib/router';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import BrandMark from './BrandMark';
@@ -19,15 +16,7 @@ const NAV_LINKS = [
   { label: 'Sale', to: '/shop?sale=true' },
 ];
 
-// Reading the query string opts a statically rendered page out of server
-// rendering, so it's isolated here: layouts render <NavbarView search="" />
-// as the Suspense fallback and this fills in the active link on the client.
 export default function Navbar() {
-  const searchParams = useSearchParams();
-  return <NavbarView search={searchParams.toString()} />;
-}
-
-export function NavbarView({ search = '' }) {
   const { user, logout } = useAuth();
   const { cartCount, wishlist } = useCart();
   const navigate = useNavigate();
@@ -37,11 +26,11 @@ export function NavbarView({ search = '' }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const params = new URLSearchParams(search);
+  const params = new URLSearchParams(location.search);
   const activeLink = location.pathname === '/shop'
     ? params.get('sale') === 'true' ? 'Sale' : params.get('sort') === 'newest' ? 'New in' : 'Explore'
     : NAV_LINKS.find(link => link.to === location.pathname)?.label;
-  useEffect(() => { setMenuOpen(false); setUserMenuOpen(false); setSearchOpen(false); }, [location.pathname, search]);
+  useEffect(() => { setMenuOpen(false); setUserMenuOpen(false); setSearchOpen(false); }, [location]);
   useEffect(() => {
     const close = e => { if (e.key === 'Escape') { setUserMenuOpen(false); setSearchOpen(false); } };
     const closeOutside = e => { if (!headerRef.current?.contains(e.target)) { setUserMenuOpen(false); setSearchOpen(false); } };
@@ -72,10 +61,10 @@ export function NavbarView({ search = '' }) {
         <Link to="/cart" className="btn-icon relative" aria-label={`Cart, ${cartCount || 0} items`}><BagIcon width={22} height={22} />{cartCount > 0 && <span className="nav-count" aria-hidden="true">{cartCount > 99 ? '99+' : cartCount}</span>}</Link>
       </div>
     </div>
-    {searchOpen && <form onSubmit={submitSearch} className="header-search container-x"><SearchIcon width={20} height={20} /><input autoFocus aria-label="Search the collection" placeholder="Search shirts, fabrics and colours" value={query} onChange={e => setQuery(e.target.value)} /><button type="submit" className="text-link">Search</button><button type="button" className="btn-icon" aria-label="Close search" onClick={() => setSearchOpen(false)}><CloseIcon width={18} height={18} /></button></form>}
+    {searchOpen && <form onSubmit={submitSearch} className="header-search container-x"><SearchIcon width={20} height={20} /><input className="input-field" autoFocus aria-label="Search the collection" placeholder="Search shirts, fabrics and colours" value={query} onChange={e => setQuery(e.target.value)} /><button type="submit" className="text-link">Search</button><button type="button" className="btn-icon" aria-label="Close search" onClick={() => setSearchOpen(false)}><CloseIcon width={18} height={18} /></button></form>}
     <Drawer open={menuOpen} onClose={() => setMenuOpen(false)} id="mobile-navigation" label="Browse the collection">
       <div className="flex items-center justify-between border-b border-sand p-5"><Link to="/" aria-label="Koorm home"><BrandMark /></Link><button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="btn-icon"><CloseIcon /></button></div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-6"><form onSubmit={submitSearch} className="mb-6 flex border-b border-sand"><input className="input-field border-0 px-0" aria-label="Search collection" placeholder="Search the collection" value={query} onChange={e => setQuery(e.target.value)} /><button className="btn-icon" aria-label="Submit search"><SearchIcon width={20} /></button></form><nav>{NAV_LINKS.map(link => <Link className="mobile-nav-link" key={link.label} to={link.to}>{link.label}<ChevronRightIcon width={16} /></Link>)}<Link className="mobile-nav-link" to="/wishlist">Wishlist<HeartIcon width={17} /></Link><Link className="mobile-nav-link" to="/contact">Contact us<ChevronRightIcon width={16} /></Link></nav><Link to={user ? '/profile' : '/login'} className="campaign-button mt-8 w-full">{user ? 'My account' : 'Login / Register'}</Link></div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-6"><form onSubmit={submitSearch} className="mb-6 flex gap-2"><input className="input-field" aria-label="Search collection" placeholder="Search the collection" value={query} onChange={e => setQuery(e.target.value)} /><button className="btn-icon" aria-label="Submit search"><SearchIcon width={20} /></button></form><nav>{NAV_LINKS.map(link => <Link className="mobile-nav-link" key={link.label} to={link.to}>{link.label}<ChevronRightIcon width={16} /></Link>)}<Link className="mobile-nav-link" to="/wishlist">Wishlist<HeartIcon width={17} /></Link><Link className="mobile-nav-link" to="/contact">Contact us<ChevronRightIcon width={16} /></Link></nav><Link to={user ? '/profile' : '/login'} className="campaign-button mt-8 w-full">{user ? 'My account' : 'Login / Register'}</Link></div>
     </Drawer>
   </header>;
 }

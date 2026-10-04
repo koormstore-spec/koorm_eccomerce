@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+﻿import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from '../test/router';
+import { MemoryRouter } from 'react-router-dom';
 import QuickView from './QuickView';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';

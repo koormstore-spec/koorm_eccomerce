@@ -1,8 +1,6 @@
-'use client';
-
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from '../lib/router';
+import { useLocation } from 'react-router-dom';
 
 // A portal keeps viewport overlays outside blurred headers and animated pages.
 export default function Drawer({ open, onClose, label, id, side = 'left', breakpoint = 1024, children }) {

@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from 'react';
 import adminApi from '../../api/adminAxios';
 

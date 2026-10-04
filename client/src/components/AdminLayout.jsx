@@ -1,7 +1,5 @@
-'use client';
-
-import { useState } from 'react';
-import { Link, NavLink, useNavigate, useLocation } from '../lib/router';
+﻿import { useState } from 'react';
+import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import Drawer from './Drawer';
 import { MenuIcon, CloseIcon, ChevronRightIcon } from './Icons';

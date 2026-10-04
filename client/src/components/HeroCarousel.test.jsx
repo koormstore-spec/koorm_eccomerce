@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import HeroCarousel from './HeroCarousel';
 
 const tick = ms => act(() => vi.advanceTimersByTime(ms));
@@ -17,7 +18,7 @@ afterEach(() => {
 });
 
 it('changes the images, copy, and shop link together every two seconds and loops through all three slides', () => {
-  render(<HeroCarousel />);
+  render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Everyday essentials');
   expect(screen.getByRole('link', { name: 'Explore the collection' })).toHaveAttribute('href', '/shop?sort=newest');
   expect(screen.getByRole('img', { name: /Sand beige/ })).toBeInTheDocument();
@@ -45,7 +46,7 @@ it('changes the images, copy, and shop link together every two seconds and loops
 });
 
 it('keeps autoplay working after manual selection with only the three dot buttons', () => {
-  render(<HeroCarousel />);
+  render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   expect(screen.getAllByRole('button')).toHaveLength(3);
   fireEvent.click(screen.getByRole('button', { name: 'Show slide 2: Comfortable' }));
   tick(1999);
@@ -61,7 +62,7 @@ it('keeps autoplay working after manual selection with only the three dot button
 });
 
 it('keeps a focused shop link in place and resumes autoplay when focus leaves', () => {
-  render(<HeroCarousel />);
+  render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   act(() => screen.getByRole('link', { name: 'Explore the collection' }).focus());
   tick(10000);
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Everyday essentials');
@@ -71,7 +72,7 @@ it('keeps a focused shop link in place and resumes autoplay when focus leaves', 
 });
 
 it('does not advance while the document is hidden', () => {
-  render(<HeroCarousel />);
+  render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   Object.defineProperty(document, 'hidden', { value: true });
   tick(10000);
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Everyday essentials');
@@ -82,7 +83,7 @@ it('does not advance while the document is hidden', () => {
 
 it('respects reduced motion, allows manual navigation, and clears its timer on unmount', () => {
   window.matchMedia.mockReturnValue({ matches: true });
-  const { unmount } = render(<HeroCarousel />);
+  const { unmount } = render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   tick(10000);
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Everyday essentials');
   fireEvent.click(screen.getByRole('button', { name: 'Show slide 2: Comfortable' }));
@@ -92,7 +93,7 @@ it('respects reduced motion, allows manual navigation, and clears its timer on u
   expect(vi.getTimerCount()).toBe(0);
   unmount();
   window.matchMedia.mockReturnValue({ matches: false });
-  const running = render(<HeroCarousel />);
+  const running = render(<MemoryRouter><HeroCarousel /></MemoryRouter>);
   expect(vi.getTimerCount()).toBe(1);
   running.unmount();
   expect(vi.getTimerCount()).toBe(0);

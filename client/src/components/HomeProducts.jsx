@@ -1,7 +1,5 @@
-'use client';
-
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from '../lib/router';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import ProductCarousel from './ProductCarousel';
 import SkeletonGrid from './SkeletonGrid';

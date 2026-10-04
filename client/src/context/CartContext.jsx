@@ -1,5 +1,3 @@
-'use client';
-
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api/axios';
 import { useAuth } from './AuthContext';

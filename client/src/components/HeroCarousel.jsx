@@ -1,8 +1,5 @@
-'use client';
-
 import { useEffect, useId, useState } from 'react';
-import { Link } from '../lib/router';
-import OptimizedImage from './OptimizedImage';
+import { Link } from 'react-router-dom';
 
 const SLIDES = [
   {
@@ -80,15 +77,15 @@ export default function HeroCarousel() {
         onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
       >
         {SLIDES.map((slide, index) => (
-          <div key={slide.title} className="winter-slide" role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${SLIDES.length}`} aria-hidden={index !== activeSlide} inert={index !== activeSlide}>
+          <div key={slide.title} className="winter-slide" role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${SLIDES.length}`} aria-hidden={index !== activeSlide} inert={index !== activeSlide ? '' : undefined}>
             {slide.images.map((photo, photoIndex) => (
-              <OptimizedImage key={photo.slug} src={`/images/collection-26/${photo.slug}/1.jpg`} alt={photo.alt} width={1200} height={1600} sizes="(max-width: 768px) 60vw, 44vw" preload={index === 0} loading={index === 0 ? undefined : 'eager'} className={`winter-model winter-model-${photoIndex === 0 ? 'left' : 'right'}`} />
+              <img key={photo.slug} src={`/images/collection-26/${photo.slug}/1.jpg`} alt={photo.alt} width="1200" height="1600" fetchpriority={index === 0 ? 'high' : undefined} className={`winter-model winter-model-${photoIndex === 0 ? 'left' : 'right'}`} />
             ))}
             <div className="winter-copy">
               <h1>{slide.title}</h1>
               <h2>{slide.subtitle}</h2>
               <p>{slide.description}</p>
-              <Link to={slide.href} className="campaign-button campaign-button-light">{slide.button}</Link>
+              <Link to={slide.href} className="campaign-button">{slide.button}</Link>
             </div>
           </div>
         ))}

@@ -1,10 +1,9 @@
 import axios from 'axios';
-import { API_URL } from './config';
 
 // Fully independent from api/axios.js — attaches the admin token, not the
 // customer token, and never reads/writes koorm_user.
 const adminApi = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
 });
 
 adminApi.interceptors.request.use((config) => {

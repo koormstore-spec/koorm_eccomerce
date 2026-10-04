@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useRef } from 'react';
 import { ChevronRightIcon, SearchIcon } from '../Icons';
 
@@ -42,9 +40,9 @@ export function AdminEmpty({ title, description, children }) {
 }
 
 export function AdminSearch({ value, onChange, placeholder, onSubmit }) {
-  return <form onSubmit={event => { event.preventDefault(); onSubmit?.(); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-sand bg-white px-3 focus-within:border-accent">
+  return <form onSubmit={event => { event.preventDefault(); onSubmit?.(); }} className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-input-border bg-white px-3 focus-within:border-accent">
     <SearchIcon width={18} height={18} className="shrink-0 text-muted" />
-    <input type="search" aria-label={placeholder} placeholder={placeholder} value={value} onChange={event => onChange(event.target.value)} className="h-11 min-w-0 w-full bg-transparent text-sm outline-none" />
+    <input type="search" aria-label={placeholder} placeholder={placeholder} value={value} onChange={event => onChange(event.target.value)} className="h-11 min-w-0 w-full border-0 bg-transparent text-sm outline-none" />
     {onSubmit && <button type="submit" className="min-h-11 shrink-0 whitespace-nowrap px-1 text-xs font-semibold text-accent">Search</button>}
   </form>;
 }

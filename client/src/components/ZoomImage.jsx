@@ -1,7 +1,4 @@
-'use client';
-
 import { useState } from 'react';
-import OptimizedImage from './OptimizedImage';
 
 export default function ZoomImage({ src, alt, className = '', children }) {
   const [zoomed, setZoomed] = useState(false);
@@ -24,14 +21,11 @@ export default function ZoomImage({ src, alt, className = '', children }) {
       onKeyDown={(event) => { if (event.key === 'Escape') setZoomed(false); }}
       className={`product-zoom relative block w-full overflow-hidden bg-sand/40 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'} ${className}`}
     >
-      {/* The main product photo is the page's largest image, so it's preloaded. */}
-      <OptimizedImage
+      <img
         src={src}
         alt={alt}
-        width={1000}
-        height={1333}
-        sizes="(max-width: 1024px) 100vw, 60vw"
-        preload
+        width="1000"
+        height="1333"
         className={`product-zoom-image h-full w-full object-contain transition-transform duration-500 ease-out motion-reduce:transition-none ${zoomed ? 'scale-[1.8]' : ''}`}
         style={{ transformOrigin: origin }}
       />

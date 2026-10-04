@@ -1,13 +1,11 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from '../lib/router';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { CloseIcon, ChevronRightIcon } from './Icons';
 import SizeSelectionToast from './SizeSelectionToast';
-import OptimizedImage from './OptimizedImage';
+import BagToast from './BagToast';
 
 export default function QuickView({ product, onClose }) {
   const dialog = useRef(null);
@@ -19,6 +17,7 @@ export default function QuickView({ product, onClose }) {
   const [photo, setPhoto] = useState(0);
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState('');
+  const [addedToast, setAddedToast] = useState(0);
   const unavailable = Number(product.stock) === 0;
   const images = product.images || [];
   useEffect(() => {
@@ -39,15 +38,16 @@ export default function QuickView({ product, onClose }) {
     if (!user) { onClose(); navigate('/login'); return; }
     setAdding(true);
     setMessage('');
-    try { await addToCart(product.id, size, 1); setMessage('Added to your bag.'); }
+    try { await addToCart(product.id, size, 1); setAddedToast(value => value + 1); }
     catch (err) { setMessage(err.response?.data?.message || 'Could not add this item. Please try again.'); }
     finally { setAdding(false); }
   };
   return createPortal(<dialog ref={dialog} className="quick-view-dialog" aria-labelledby={`quick-view-title-${product.id}`} onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
     {sizeNotice > 0 && <SizeSelectionToast key={sizeNotice} portal={false} onClose={() => setSizeNotice(0)} />}
+    {addedToast > 0 && <BagToast key={addedToast} portal={false} onClose={() => setAddedToast(0)} />}
     <div className="quick-view-layout">
       <button autoFocus type="button" className="quick-view-close btn-icon" aria-label="Close quick view" onClick={onClose}><CloseIcon width={21} /></button>
-      <div className="quick-view-photo"><OptimizedImage src={images[photo]} alt={`${product.name}, view ${photo + 1}`} width={1200} height={1600} sizes="(max-width: 768px) 100vw, 50vw" />{images.length > 1 && <div className="quick-view-photo-controls"><button aria-label="Previous photograph" onClick={() => setPhoto((photo + images.length - 1) % images.length)}><ChevronRightIcon className="rotate-180" width={18} /></button><span>{photo + 1} / {images.length}</span><button aria-label="Next photograph" onClick={() => setPhoto((photo + 1) % images.length)}><ChevronRightIcon width={18} /></button></div>}</div>
+      <div className="quick-view-photo"><img src={images[photo]} alt={`${product.name}, view ${photo + 1}`} />{images.length > 1 && <div className="quick-view-photo-controls"><button aria-label="Previous photograph" onClick={() => setPhoto((photo + images.length - 1) % images.length)}><ChevronRightIcon className="rotate-180" width={18} /></button><span>{photo + 1} / {images.length}</span><button aria-label="Next photograph" onClick={() => setPhoto((photo + 1) % images.length)}><ChevronRightIcon width={18} /></button></div>}</div>
       <div className="quick-view-copy">
         <p className="eyebrow">{product.brand || 'Koorm'}</p>
         <h2 id={`quick-view-title-${product.id}`} className="product-name">{product.name}</h2>

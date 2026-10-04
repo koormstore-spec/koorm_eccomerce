@@ -1,7 +1,5 @@
-'use client';
-
 import { useEffect, useId, useRef, useState } from 'react';
-import { Link } from '../lib/router';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { ChevronRightIcon, StarIcon } from './Icons';
@@ -223,8 +221,8 @@ export default function CustomerReviews() {
           </fieldset>
           {error && <p role="alert" className="review-form-error">{error}</p>}
           {message && <p role="status" className="review-form-success">{message}</p>}
-          {user ? <button type="submit" className="campaign-button campaign-button-dark" disabled={saving || loading}>{saving ? 'Submitting...' : 'Submit review'}</button>
-            : <p className="review-login"><Link to="/login" state={{ from: { pathname: '/' } }} className="campaign-button campaign-button-dark">Sign in to write a review</Link></p>}
+          {user ? <button type="submit" className="campaign-button" disabled={saving || loading}>{saving ? 'Submitting...' : 'Submit review'}</button>
+            : <p className="review-login"><Link to="/login" state={{ from: { pathname: '/' } }} className="campaign-button">Sign in to write a review</Link></p>}
         </form>
       </div>
     </section>

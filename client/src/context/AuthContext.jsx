@@ -1,26 +1,13 @@
-'use client';
-
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  // The saved session lives in localStorage, which the server can't see, so
-  // it's loaded after mount. `ready` lets guards wait for it instead of
-  // treating a signed-in customer as signed out on the first render.
-  const [user, setUser] = useState(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('koorm_user');
-      if (stored) setUser(JSON.parse(stored));
-    } catch {
-      localStorage.removeItem('koorm_user');
-    }
-    setReady(true);
-  }, []);
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem('koorm_user');
+    return stored ? JSON.parse(stored) : null;
+  });
 
   const setSession = (data) => {
     localStorage.setItem('koorm_user', JSON.stringify(data));
@@ -67,7 +54,6 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider
       value={{
         user,
-        ready,
         register,
         verifyEmail,
         resendVerificationCode,

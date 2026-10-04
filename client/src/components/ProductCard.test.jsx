@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from '../test/router';
+import { MemoryRouter } from 'react-router-dom';
 import ProductCard from './ProductCard';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -100,6 +100,13 @@ describe('ProductCard', () => {
     renderCard(baseProduct, { user: { id: 1, name: 'Jane' }, addToCart });
     fireEvent.click(screen.getByText('S'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Only 1 left in stock for Linen Shirt - Rust Red');
+  });
+
+  it('shows an added-to-bag toast after a successful quick add', async () => {
+    renderCard(baseProduct, { user: { id: 1, name: 'Jane' }, addToCart: vi.fn().mockResolvedValue(undefined) });
+    fireEvent.click(screen.getByText('S'));
+    expect(await screen.findByText('Added to your bag.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View bag' })).toHaveAttribute('href', '/cart');
   });
 
   it('links to the product detail page by slug', () => {

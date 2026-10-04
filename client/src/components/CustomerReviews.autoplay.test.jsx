@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import CustomerReviews from './CustomerReviews';
 import api from '../api/axios';
 
@@ -19,7 +20,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resto
 
 const setup = async () => {
   let result;
-  await act(async () => { result = render(<CustomerReviews />); });
+  await act(async () => { result = render(<MemoryRouter><CustomerReviews /></MemoryRouter>); });
   const track = screen.getByRole('group', { name: 'Scrollable customer reviews' });
   Object.defineProperties(track, {
     clientWidth: { value: 400, configurable: true },

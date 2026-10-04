@@ -1,5 +1,3 @@
-'use client';
-
 export default function SkeletonGrid({ count = 8, cols = 'grid-cols-2 md:grid-cols-4' }) {
   return (
     <div aria-hidden="true" className={`grid ${cols} gap-x-4 gap-y-9 md:gap-x-6`}>
