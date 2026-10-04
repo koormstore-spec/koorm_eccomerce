@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import api from '../api/axios';
 import Loader from '../components/Loader';
+import { CloseIcon } from '../components/Icons';
 
 const STATUS_COLORS = {
   placed: 'bg-blue-100 text-blue-700',
@@ -17,6 +19,7 @@ export default function OrderDetail() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelledToast, setShowCancelledToast] = useState(false);
 
   const load = () => {
     api.get(`/orders/${id}`).then(({ data }) => setOrder(data)).finally(() => setLoading(false));
@@ -24,10 +27,17 @@ export default function OrderDetail() {
 
   useEffect(load, [id]);
 
+  useEffect(() => {
+    if (!showCancelledToast) return;
+    const timer = window.setTimeout(() => setShowCancelledToast(false), 3500);
+    return () => window.clearTimeout(timer);
+  }, [showCancelledToast]);
+
   const cancelOrder = async () => {
     setCancelling(true);
     try {
       await api.put(`/orders/${id}/cancel`);
+      setShowCancelledToast(true);
       load();
     } finally {
       setCancelling(false);
@@ -41,6 +51,16 @@ export default function OrderDetail() {
 
   return (
     <div className="container-x py-10 max-w-3xl mx-auto fade-in">
+      {showCancelledToast && createPortal(
+        <div className="bag-toast" role="status" aria-atomic="true">
+          <span className="bag-toast-icon" aria-hidden="true">✓</span>
+          <p className="text-red-700">Order has been canceled</p>
+          <button type="button" onClick={() => setShowCancelledToast(false)} aria-label="Dismiss order cancellation message">
+            <CloseIcon width={16} height={16} aria-hidden="true" />
+          </button>
+        </div>,
+        document.body
+      )}
       {location.state?.justPlaced && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-5 py-4 mb-8 text-center">
           🎉 Order placed successfully! You'll pay ₹{Number(order.total_amount).toLocaleString('en-IN')} on delivery.
